@@ -47,14 +47,11 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio  # если ещё нет в requirements.txt
-
+          
       - name: Run backend tests
         env:
           DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
-        run: |
-          cd backend
-          pytest -c pytest.ci.ini
+        run: pytest -c backend/pytest.ci.ini
       
       # Frontend
       - name: Install frontend dependencies
