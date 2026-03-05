@@ -16,7 +16,6 @@ def test_skill_creation():
     assert skill.title == title
     assert skill.description == description
     assert skill.difficulty == difficulty
-    assert skill.prerequisites == []
 
 
 def test_skill_from_dict():

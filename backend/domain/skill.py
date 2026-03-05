@@ -7,10 +7,9 @@ class Skill:
     title: str
     description: str
     difficulty: int
-    prerequisites: list[str] = field(default_factory=list)
 
     def __repr__(self) -> str:
-        return f"Skill(id: {self.id}, prerequisites: {self.prerequisites})"
+        return f"Skill(id: {self.id})"
     
     def __str__(self) -> str:
         return f"Skill({self.id})"
@@ -23,7 +22,6 @@ class Skill:
             title=obj["title"],
             description=obj["description"],
             difficulty=obj["difficulty"],
-            prerequisites=obj["prerequisites"],
         )
 
         return ins
