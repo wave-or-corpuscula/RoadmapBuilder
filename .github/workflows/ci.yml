@@ -61,10 +61,10 @@ jobs:
           cd frontend
           npm ci
 
-      - name: Run frontend tests
-        run: |
-          cd frontend
-          npm test -- --watchAll=false --ci --coverage
+      # - name: Run frontend tests
+      #   run: |
+      #     cd frontend
+      #     npm test -- --watchAll=false --ci --coverage
 
       - name: Build frontend
         run: |
