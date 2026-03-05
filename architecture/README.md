@@ -92,3 +92,5 @@ knowledge-navigator/
 2. **Immutable plans**: план фиксируется, перестройка — только явное действие
 3. **DAG validation**: граф проверяется на отсутствие циклов при каждом изменении
 4. **Layered architecture**: API → Service → Domain → Repository
+
+test
