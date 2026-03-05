@@ -1,0 +1,158 @@
+{
+  "skills": [
+    {
+      "id": "python_basics",
+      "title": "Основы Python",
+      "description": "Синтаксис, переменные, типы данных, условные операторы, циклы",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "functions",
+      "title": "Функции",
+      "description": "Определение функций, аргументы, return, области видимости",
+      "difficulty": 2,
+      "prerequisites": ["python_basics"]
+    },
+    {
+      "id": "data_structures",
+      "title": "Структуры данных",
+      "description": "Списки, кортежи, словари, множества, comprehensions",
+      "difficulty": 2,
+      "prerequisites": ["python_basics"]
+    },
+    {
+      "id": "modules_packages",
+      "title": "Модули и пакеты",
+      "description": "Импорты, создание модулей, __name__, pip",
+      "difficulty": 2,
+      "prerequisites": ["functions", "data_structures"]
+    },
+    {
+      "id": "file_io",
+      "title": "Работа с файлами",
+      "description": "Открытие/закрытие файлов, чтение/запись, контекстные менеджеры",
+      "difficulty": 2,
+      "prerequisites": ["functions"]
+    },
+    {
+      "id": "error_handling",
+      "title": "Обработка ошибок",
+      "description": "try/except/else/finally, исключения, raise",
+      "difficulty": 2,
+      "prerequisites": ["functions", "file_io"]
+    },
+    {
+      "id": "oop_basics",
+      "title": "ООП: основы",
+      "description": "Классы, объекты, методы, __init__, self",
+      "difficulty": 3,
+      "prerequisites": ["functions", "data_structures", "modules_packages"]
+    },
+    {
+      "id": "oop_advanced",
+      "title": "ООП: продвинутое",
+      "description": "Наследование, полиморфизм, инкапсуляция, магические методы, property",
+      "difficulty": 3,
+      "prerequisites": ["oop_basics"]
+    },
+    {
+      "id": "decorators",
+      "title": "Декораторы",
+      "description": "Функции-декораторы, wraps, functools, применение",
+      "difficulty": 4,
+      "prerequisites": ["functions", "oop_basics"]
+    },
+    {
+      "id": "generators",
+      "title": "Генераторы и итераторы",
+      "description": "yield, генераторные выражения, итераторы, iter, next",
+      "difficulty": 4,
+      "prerequisites": ["functions", "data_structures"]
+    },
+    {
+      "id": "context_managers",
+      "title": "Контекстные менеджеры",
+      "description": "with, __enter__/__exit__, contextlib",
+      "difficulty": 3,
+      "prerequisites": ["oop_basics", "file_io"]
+    },
+    {
+      "id": "regular_expressions",
+      "title": "Регулярные выражения",
+      "description": "re модуль, паттерны, поиск, замена",
+      "difficulty": 3,
+      "prerequisites": ["functions", "error_handling"]
+    },
+    {
+      "id": "testing_basics",
+      "title": "Тестирование: основы",
+      "description": "unittest, pytest, assert, fixtures",
+      "difficulty": 3,
+      "prerequisites": ["modules_packages", "error_handling"]
+    },
+    {
+      "id": "async_basics",
+      "title": "Асинхронность: основы",
+      "description": "asyncio, async/await, event loop, корутины",
+      "difficulty": 4,
+      "prerequisites": ["functions", "generators", "error_handling"]
+    },
+    {
+      "id": "async_advanced",
+      "title": "Асинхронность: продвинутое",
+      "description": "tasks, futures, aiohttp, асинхронные контекстные менеджеры",
+      "difficulty": 5,
+      "prerequisites": ["async_basics"]
+    },
+    {
+      "id": "multithreading",
+      "title": "Многопоточность",
+      "description": "threading, GIL, синхронизация, locks, queues",
+      "difficulty": 4,
+      "prerequisites": ["functions", "error_handling"]
+    },
+    {
+      "id": "multiprocessing",
+      "title": "Многопроцессорность",
+      "description": "multiprocessing, Pool, Queue, межпроцессное взаимодействие",
+      "difficulty": 4,
+      "prerequisites": ["functions", "multithreading"]
+    },
+    {
+      "id": "databases_basics",
+      "title": "Базы данных: основы",
+      "description": "SQLite, подключение, курсоры, простые запросы",
+      "difficulty": 3,
+      "prerequisites": ["modules_packages", "error_handling"]
+    },
+    {
+      "id": "sqlalchemy_basics",
+      "title": "SQLAlchemy: основы",
+      "description": "ORM, модели, сессии, базовые запросы",
+      "difficulty": 4,
+      "prerequisites": ["databases_basics", "oop_basics"]
+    },
+    {
+      "id": "sqlalchemy_advanced",
+      "title": "SQLAlchemy: продвинутое",
+      "description": "отношения, joins, eager loading, миграции (Alembic)",
+      "difficulty": 4,
+      "prerequisites": ["sqlalchemy_basics"]
+    },
+    {
+      "id": "fastapi_basics",
+      "title": "FastAPI: основы",
+      "description": "роутинг, path/query параметры, Pydantic модели",
+      "difficulty": 4,
+      "prerequisites": ["async_basics", "testing_basics"]
+    },
+    {
+      "id": "fastapi_advanced",
+      "title": "FastAPI: продвинутое",
+      "description": "dependency injection, middleware, WebSockets, background tasks",
+      "difficulty": 5,
+      "prerequisites": ["fastapi_basics"]
+    }
+  ]
+}
