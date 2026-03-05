@@ -54,17 +54,18 @@ jobs:
           DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
         run: |
           cd backend
-          pytest -v --maxfail=1 --disable-warnings
-
+          pytest -c pytest.ci.ini
+      
+      # Frontend
       - name: Install frontend dependencies
         run: |
           cd frontend
           npm ci
 
-      # - name: Run frontend tests
-      #   run: |
-      #     cd frontend
-      #     npm test -- --watchAll=false --ci --coverage
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm run test:run -- --watchAll=false --ci --coverage
 
       - name: Build frontend
         run: |
