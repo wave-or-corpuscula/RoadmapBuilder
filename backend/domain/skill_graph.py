@@ -13,13 +13,10 @@ class SkillGraph:
         self.prerequisites_map: Dict[str, Set[str]] = defaultdict(set)
 
     @classmethod
-    def from_json(cls, path: str) -> "SkillGraph":
+    def from_dict(cls, data: dict) -> "SkillGraph":
 
         graph = cls()
 
-        with open(path) as file:
-            data = json.load(file)
-        
         for raw_skill in data["skills"]:
             skill_id = raw_skill["id"]
 
@@ -34,7 +31,7 @@ class SkillGraph:
                 difficulty=raw_skill["difficulty"],
             )
 
-            graph.skills[skill.id] = skill
+            graph.skills[skill_id] = skill
 
         for raw in data["skills"]:
             skill_id = raw["id"]
@@ -49,7 +46,51 @@ class SkillGraph:
         graph.validate_no_cycles()
 
         return graph
+
+
+    @classmethod
+    def from_json(cls, path: str) -> "SkillGraph":
+
+        with open(path) as file:
+            data = json.load(file)
+
+        return SkillGraph.from_dict(data)
+        
+        
     
     def validate_no_cycles(self):
-        # TODO: Implement
-        ...
+
+        visited = set()
+
+        def dfs(skill_id: str) -> bool:
+
+            stack = [(skill_id, False)]
+            path = set()
+            
+            while stack:
+                node, is_backtrack = stack.pop()
+                
+                if is_backtrack:
+                    path.remove(node)
+                    continue
+
+                if node in path:
+                    return True
+                
+                if node in visited:
+                    continue
+                
+                visited.add(node)
+                path.add(node)
+
+                stack.append((node, True))
+
+                for neighbour in self.dependents_map[node]:
+                    stack.append((neighbour, False))
+            
+            return False
+            
+
+        for skill_id in self.skills:
+            if skill_id not in visited and dfs(skill_id):
+                raise ValueError("Graph contains a cycle!")
