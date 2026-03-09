@@ -15,7 +15,32 @@ class SkillGraph:
 
     @classmethod
     def from_dict(cls, data: dict) -> "SkillGraph":
-
+        """
+        Create a SkillGraph instance from a dictionary.
+        
+        Args:
+            data: Dictionary containing skill definitions with format:
+                {
+                    "skills": [
+                        {
+                            "id": str,
+                            "title": str,
+                            "description": str,
+                            "difficulty": int,
+                            "prerequisites": List[str]
+                        },
+                        ...
+                    ]
+                }
+        
+        Returns:
+            SkillGraph: New graph instance with all skills and dependencies loaded
+        
+        Raises:
+            ValueError: If duplicate skill IDs are found,
+                    if prerequisite references non-existent skill,
+                    or if graph contains cycles
+        """
         graph = cls()
 
         for raw_skill in data["skills"]:
@@ -23,7 +48,6 @@ class SkillGraph:
 
             if skill_id in graph.skills:
                 raise ValueError(f"Duplicate skill with id: {skill_id}")
-
 
             skill = Skill(
                 id=raw_skill["id"],
@@ -38,30 +62,56 @@ class SkillGraph:
             skill_id = raw["id"]
             for prereq in raw.get("prerequisites", []):
                 if prereq not in graph.skills:
-                    raise ValueError(f"Unknown prerequisete: {prereq} for {skill_id}")
+                    raise ValueError(f"Unknown prerequisite: {prereq} for {skill_id}")
                 
                 graph.prerequisites_map[skill_id].add(prereq)
                 graph.dependents_map[prereq].add(skill_id)
-
 
         graph.validate_no_cycles()
 
         return graph
 
-    @classmethod
-    def from_json(cls, path: str) -> "SkillGraph":
-
+    @staticmethod
+    def from_json(path: str) -> "SkillGraph":
+        """
+        Create a SkillGraph instance from a JSON file.
+        
+        Args:
+            path: Path to JSON file containing skill definitions
+                (format same as from_dict)
+        
+        Returns:
+            SkillGraph: New graph instance with all skills and dependencies loaded
+        
+        Raises:
+            FileNotFoundError: If the specified file doesn't exist
+            json.JSONDecodeError: If the file contains invalid JSON
+            ValueError: If duplicate skill IDs are found,
+                    if prerequisite references non-existent skill,
+                    or if graph contains cycles
+        """
         with open(path) as file:
             data = json.load(file)
 
         return SkillGraph.from_dict(data)
-        
-    def validate_no_cycles(self):
 
+
+    def validate_no_cycles(self):
+        """
+        Check if the graph contains any cycles.
+        
+        Uses iterative DFS to detect cycles in the directed graph.
+        A cycle would make it impossible to determine a valid learning order.
+        
+        Returns:
+            None
+        
+        Raises:
+            ValueError: If a cycle is detected in the graph
+        """
         visited = set()
 
         def dfs(skill_id: str) -> bool:
-
             stack = [(skill_id, False)]
             path = set()
             
@@ -87,8 +137,7 @@ class SkillGraph:
                     stack.append((neighbour, False))
             
             return False
-            
-
+        
         for skill_id in self.skills:
             if skill_id not in visited and dfs(skill_id):
                 raise ValueError("Graph contains a cycle!")
