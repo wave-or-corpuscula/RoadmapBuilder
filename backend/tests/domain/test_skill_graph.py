@@ -113,8 +113,8 @@ def test_get_transitive_deps_no_dependencies(sample_graph):
 
 def test_get_transitive_deps_nonexistent_skill(sample_graph):
     """Non-existent skill ID."""
-    deps = sample_graph.get_transitive_deps("nonexistent")
-    assert deps == set()
+    with raises(ValueError):
+        sample_graph.get_transitive_deps("nonexistent")
 
 
 def test_create_graph_with_missing_prereq():
