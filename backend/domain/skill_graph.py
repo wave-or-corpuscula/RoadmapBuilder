@@ -1,6 +1,7 @@
 import json
 from typing import Dict, Set
 from collections import defaultdict
+import heapq
 
 from .skill import Skill
 
@@ -47,7 +48,6 @@ class SkillGraph:
 
         return graph
 
-
     @classmethod
     def from_json(cls, path: str) -> "SkillGraph":
 
@@ -56,7 +56,6 @@ class SkillGraph:
 
         return SkillGraph.from_dict(data)
         
-    
     def validate_no_cycles(self):
 
         visited = set()
@@ -94,7 +93,6 @@ class SkillGraph:
             if skill_id not in visited and dfs(skill_id):
                 raise ValueError("Graph contains a cycle!")
 
-   
     def get_transitive_deps(self, skill_id: str) -> Set[str]:
         """
         Returns all transitive dependencies (prerequisites) of a skill.
@@ -122,3 +120,63 @@ class SkillGraph:
                 stack.extend(self.prerequisites_map[current_id])
         
         return deps
+
+    def topological_sort(self) -> list[str]:
+        """
+        Returns a topological order of all skills in the graph.
+
+        Returns:
+            list[str]: Skill IDs in valid learning order
+        """
+        return self._topological_sort_subset(set(self.skills.keys()))
+
+    def topological_sort_for_skill(self, skill_id: str) -> list[str]:
+        """
+        Returns a topological order for a target skill and all its prerequisites.
+
+        Args:
+            skill_id: Target skill ID
+
+        Returns:
+            list[str]: Skill IDs required to reach target skill
+        """
+        if skill_id not in self.skills:
+            raise ValueError(f"No such skill: {skill_id}")
+
+        subset = self.get_transitive_deps(skill_id)
+        subset.add(skill_id)
+        return self._topological_sort_subset(subset)
+
+    def _topological_sort_subset(self, subset: Set[str]) -> list[str]:
+        in_degree = {skill_id: 0 for skill_id in self.skills}
+
+        for skill_id, prerequisites in self.prerequisites_map.items():
+            if skill_id in self.skills:
+                in_degree[skill_id] += len(prerequisites)
+
+        # Heap gives deterministic order between independent nodes.
+        zero_degree = [skill_id for skill_id in subset if in_degree[skill_id] == 0]
+        heapq.heapify(zero_degree)
+
+        ordered = []
+        visited = set()
+
+        while zero_degree:
+            current = heapq.heappop(zero_degree)
+            if current in visited:
+                continue
+
+            visited.add(current)
+            ordered.append(current)
+
+            for dependent in self.dependents_map[current]:
+                if dependent not in subset:
+                    continue
+                in_degree[dependent] -= 1
+                if in_degree[dependent] == 0:
+                    heapq.heappush(zero_degree, dependent)
+
+        if len(ordered) != len(subset):
+            raise ValueError("Graph contains a cycle!")
+
+        return ordered

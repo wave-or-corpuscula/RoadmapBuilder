@@ -3,6 +3,7 @@ import json
 import pytest
 from pytest import raises
 
+from backend.domain.skill import Skill
 from backend.domain.skill_graph import SkillGraph
 
 
@@ -252,3 +253,63 @@ def test_get_transitive_deps_deep_nesting():
     deps = graph.get_transitive_deps("5")
     print(deps)
     assert deps == {"4", "3", "2", "1"}
+
+
+def test_topological_sort_respects_dependencies(sample_graph):
+    ordered = sample_graph.topological_sort()
+    position = {skill_id: idx for idx, skill_id in enumerate(ordered)}
+
+    assert set(ordered) == set(sample_graph.skills.keys())
+
+    for skill_id, prerequisites in sample_graph.prerequisites_map.items():
+        for prerequisite in prerequisites:
+            assert position[prerequisite] < position[skill_id]
+
+
+def test_topological_sort_empty_graph():
+    graph = SkillGraph()
+    assert graph.topological_sort() == []
+
+
+def test_topological_sort_detects_cycle_when_graph_mutated():
+    graph = SkillGraph()
+    graph.skills = {
+        "A": Skill(id="A", title="", description="", difficulty=1),
+        "B": Skill(id="B", title="", description="", difficulty=1),
+    }
+    graph.prerequisites_map["A"].add("B")
+    graph.prerequisites_map["B"].add("A")
+    graph.dependents_map["A"].add("B")
+    graph.dependents_map["B"].add("A")
+
+    with raises(ValueError):
+        graph.topological_sort()
+
+
+def test_topological_sort_for_skill_returns_only_required_subset(sample_graph):
+    ordered = sample_graph.topological_sort_for_skill("decorators")
+    position = {skill_id: idx for idx, skill_id in enumerate(ordered)}
+
+    assert set(ordered) == {"python_basics", "functions", "decorators"}
+    assert position["python_basics"] < position["functions"] < position["decorators"]
+
+
+def test_topological_sort_for_skill_branching(sample_graph):
+    ordered = sample_graph.topological_sort_for_skill("algorithms")
+    position = {skill_id: idx for idx, skill_id in enumerate(ordered)}
+
+    assert set(ordered) == {
+        "python_basics",
+        "functions",
+        "data_structures",
+        "algorithms",
+    }
+    assert position["python_basics"] < position["functions"]
+    assert position["python_basics"] < position["data_structures"]
+    assert position["functions"] < position["algorithms"]
+    assert position["data_structures"] < position["algorithms"]
+
+
+def test_topological_sort_for_skill_nonexistent_skill(sample_graph):
+    with raises(ValueError):
+        sample_graph.topological_sort_for_skill("nonexistent")
