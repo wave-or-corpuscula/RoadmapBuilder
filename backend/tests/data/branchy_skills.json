@@ -1,0 +1,109 @@
+{
+  "skills": [
+    {
+      "id": "A1",
+      "title": "Skill A1",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "A2",
+      "title": "Skill A2",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "B1",
+      "title": "Skill B1",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "B2",
+      "title": "Skill B2",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "A",
+      "title": "Skill A",
+      "description": "Depends on A1 and A2",
+      "difficulty": 2,
+      "prerequisites": ["A1", "A2"]
+    },
+    {
+      "id": "B",
+      "title": "Skill B",
+      "description": "Depends on B1 and B2",
+      "difficulty": 2,
+      "prerequisites": ["B1", "B2"]
+    },
+    {
+      "id": "D1",
+      "title": "Skill D1",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "D2",
+      "title": "Skill D2",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "E1",
+      "title": "Skill E1",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "E2",
+      "title": "Skill E2",
+      "description": "Root skill",
+      "difficulty": 1,
+      "prerequisites": []
+    },
+    {
+      "id": "D",
+      "title": "Skill D",
+      "description": "Depends on D1 and D2",
+      "difficulty": 2,
+      "prerequisites": ["D1", "D2"]
+    },
+    {
+      "id": "E",
+      "title": "Skill E",
+      "description": "Depends on E1 and E2",
+      "difficulty": 2,
+      "prerequisites": ["E1", "E2"]
+    },
+    {
+      "id": "C",
+      "title": "Skill C",
+      "description": "Depends on A and B",
+      "difficulty": 3,
+      "prerequisites": ["A", "B"]
+    },
+    {
+      "id": "F",
+      "title": "Skill F",
+      "description": "Depends on D and E",
+      "difficulty": 3,
+      "prerequisites": ["D", "E", "B"]
+    },
+    {
+      "id": "G",
+      "title": "Skill G",
+      "description": "Depends on C and F",
+      "difficulty": 4,
+      "prerequisites": ["C", "F"]
+    }
+  ]
+}
