@@ -95,6 +95,33 @@ class SkillGraph:
 
         return SkillGraph.from_dict(data)
 
+    def add_skill(self, skill: Skill, prerequisites: list[str] | None = None):
+        """
+        Add a new skill with optional prerequisites.
+
+        Args:
+            skill: Skill entity to add
+            prerequisites: List of prerequisite skill IDs
+
+        Raises:
+            ValueError: If skill already exists, prerequisite is unknown,
+                    or graph becomes cyclic after insertion
+        """
+        if skill.id in self.skills:
+            raise ValueError(f"Duplicate skill with id: {skill.id}")
+
+        prerequisites = prerequisites or []
+        for prerequisite in prerequisites:
+            if prerequisite not in self.skills:
+                raise ValueError(f"Unknown prerequisite: {prerequisite} for {skill.id}")
+
+        self.skills[skill.id] = skill
+
+        for prerequisite in prerequisites:
+            self.prerequisites_map[skill.id].add(prerequisite)
+            self.dependents_map[prerequisite].add(skill.id)
+
+        self.validate_no_cycles()
 
     def validate_no_cycles(self):
         """

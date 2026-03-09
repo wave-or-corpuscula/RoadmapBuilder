@@ -313,3 +313,41 @@ def test_topological_sort_for_skill_branching(sample_graph):
 def test_topological_sort_for_skill_nonexistent_skill(sample_graph):
     with raises(ValueError):
         sample_graph.topological_sort_for_skill("nonexistent")
+
+
+def test_add_skill_success(sample_graph):
+    new_skill = Skill(
+        id="typing",
+        title="Typing",
+        description="Speed typing basics",
+        difficulty=1,
+    )
+    sample_graph.add_skill(new_skill, prerequisites=["python_basics"])
+
+    assert "typing" in sample_graph.skills
+    assert "python_basics" in sample_graph.prerequisites_map["typing"]
+    assert "typing" in sample_graph.dependents_map["python_basics"]
+
+
+def test_add_skill_duplicate_id(sample_graph):
+    duplicate_skill = Skill(
+        id="functions",
+        title="Functions duplicate",
+        description="",
+        difficulty=1,
+    )
+
+    with raises(ValueError):
+        sample_graph.add_skill(duplicate_skill, prerequisites=[])
+
+
+def test_add_skill_unknown_prerequisite(sample_graph):
+    new_skill = Skill(
+        id="generics",
+        title="Generics",
+        description="",
+        difficulty=3,
+    )
+
+    with raises(ValueError):
+        sample_graph.add_skill(new_skill, prerequisites=["does_not_exist"])
