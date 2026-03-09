@@ -351,3 +351,24 @@ def test_add_skill_unknown_prerequisite(sample_graph):
 
     with raises(ValueError):
         sample_graph.add_skill(new_skill, prerequisites=["does_not_exist"])
+
+
+def test_depth_cache_computed_on_graph_creation(sample_graph):
+    assert sample_graph.get_depth("python_basics") == 0
+    assert sample_graph.get_depth("functions") == 1
+    assert sample_graph.get_depth("data_structures") == 1
+    assert sample_graph.get_depth("decorators") == 2
+    assert sample_graph.get_depth("algorithms") == 2
+    assert sample_graph.get_depth("async_advanced") == 3
+
+
+def test_depth_cache_recalculated_after_add_skill(sample_graph):
+    new_skill = Skill(
+        id="system_design",
+        title="System Design",
+        description="",
+        difficulty=5,
+    )
+    sample_graph.add_skill(new_skill, prerequisites=["decorators", "algorithms"])
+
+    assert sample_graph.get_depth("system_design") == 3

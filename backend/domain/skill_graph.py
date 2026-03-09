@@ -12,6 +12,7 @@ class SkillGraph:
         self.skills: Dict[str, Skill] = {}
         self.dependents_map: Dict[str, Set[str]] = defaultdict(set)
         self.prerequisites_map: Dict[str, Set[str]] = defaultdict(set)
+        self.depth_cache: Dict[str, int] = {}
 
     @classmethod
     def from_dict(cls, data: dict) -> "SkillGraph":
@@ -68,6 +69,7 @@ class SkillGraph:
                 graph.dependents_map[prereq].add(skill_id)
 
         graph.validate_no_cycles()
+        graph.recalculate_depth_cache()
 
         return graph
 
@@ -122,6 +124,46 @@ class SkillGraph:
             self.dependents_map[prerequisite].add(skill.id)
 
         self.validate_no_cycles()
+        self.recalculate_depth_cache()
+
+    def recalculate_depth_cache(self):
+        """
+        Recalculate and store depth for every node in the graph.
+
+        Depth definition:
+            - root node (no prerequisites) -> depth 0
+            - other node -> 1 + max(depth of its prerequisites)
+        """
+        ordered = self.topological_sort()
+        self.depth_cache = {}
+
+        for skill_id in ordered:
+            prerequisites = self.prerequisites_map[skill_id]
+            if not prerequisites:
+                self.depth_cache[skill_id] = 0
+                continue
+
+            self.depth_cache[skill_id] = 1 + max(
+                self.depth_cache[prerequisite] for prerequisite in prerequisites
+            )
+
+    def get_depth(self, skill_id: str) -> int:
+        """
+        Get cached node depth.
+
+        Args:
+            skill_id: Skill ID
+
+        Returns:
+            int: Cached depth value
+        """
+        if skill_id not in self.skills:
+            raise ValueError(f"No such skill: {skill_id}")
+
+        if skill_id not in self.depth_cache:
+            self.recalculate_depth_cache()
+
+        return self.depth_cache[skill_id]
 
     def validate_no_cycles(self):
         """
