@@ -56,7 +56,6 @@ class SkillGraph:
 
         return SkillGraph.from_dict(data)
         
-        
     
     def validate_no_cycles(self):
 
@@ -94,3 +93,32 @@ class SkillGraph:
         for skill_id in self.skills:
             if skill_id not in visited and dfs(skill_id):
                 raise ValueError("Graph contains a cycle!")
+
+   
+    def get_transitive_deps(self, skill_id: str) -> Set[str]:
+        """
+        Returns all transitive dependencies (prerequisites) of a skill.
+        
+        Args:
+            skill_id: ID of the skill
+            
+        Returns:
+            Set[str]: Set of all prerequisite skill IDs
+        """
+        if skill_id not in self.skills:
+            raise ValueError(f"No such skill: {skill_id}")
+        
+        deps = set()
+        stack = list(self.prerequisites_map[skill_id])
+        
+        while stack:
+            current_id = stack.pop()
+            
+            if current_id in deps:
+                continue
+                
+            if current_id in self.skills:
+                deps.add(current_id)
+                stack.extend(self.prerequisites_map[current_id])
+        
+        return deps

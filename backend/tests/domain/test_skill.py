@@ -2,6 +2,8 @@ import json
 
 from backend.domain.skill import Skill
 
+from backend.tests.domain.test_skill_graph import skills_path
+
 
 def test_skill_creation():
 
@@ -19,7 +21,7 @@ def test_skill_creation():
 
 
 def test_skill_from_dict():
-    with open("backend/data.testing/skills.json") as f:
+    with open(skills_path) as f:
         data = json.load(f)
         raw_skills = data["skills"]
         skills_amount = len(raw_skills)
