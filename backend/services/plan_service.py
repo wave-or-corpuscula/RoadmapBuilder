@@ -21,7 +21,8 @@ class PlanService:
             2) difficulty (asc)
             3) skill_id (asc, deterministic tie-breaker)
         """
-        required = self._collect_required_skills(graph=graph, goal=goal)
+        subgraph = graph.get_subgraph(goal.target_skill_ids, goal.mode)
+        required = set(subgraph.skills.keys())
         mastered = knowledge.mastered_ids()
         required -= mastered
 
@@ -32,25 +33,12 @@ class PlanService:
                 ordered_skill_ids=[],
             )
 
-        ordered = self._topological_sort_by_priority(graph=graph, subset=required)
+        ordered = self._topological_sort_by_priority(graph=subgraph, subset=required)
         return LearningPlan(
             user_id=knowledge.user_id,
             goal=goal,
             ordered_skill_ids=ordered,
         )
-
-    def _collect_required_skills(self, graph: SkillGraph, goal: LearningGoal) -> set[str]:
-        required = set()
-
-        # Modes can be expanded later; for now every mode uses full transitive closure.
-        for goal_id in goal.target_skill_ids:
-            if goal_id not in graph.skills:
-                raise ValueError(f"No such skill: {goal_id}")
-
-            required.update(graph.get_transitive_deps(goal_id))
-            required.add(goal_id)
-
-        return required
 
     def _topological_sort_by_priority(self, graph: SkillGraph, subset: set[str]) -> list[str]:
         in_degree = {skill_id: 0 for skill_id in subset}

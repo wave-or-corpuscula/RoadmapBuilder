@@ -1,6 +1,7 @@
 import pytest
 
 from backend.domain.enums import KnowledgeStatus
+from backend.domain.enums import LearningMode
 from backend.domain.learning_goal import LearningGoal
 from backend.domain.skill_graph import SkillGraph
 from backend.domain.user_knowledge import UserKnowledge
@@ -72,7 +73,7 @@ def sample_graph():
 
 
 def test_build_plan_single_goal_chain(plan_service, sample_graph):
-    goal = LearningGoal(target_skill_ids=["async_advanced"])
+    goal = LearningGoal(target_skill_ids=["async_advanced"], mode=LearningMode.SURFACE)
     knowledge = UserKnowledge(user_id="u1")
     plan: LearningPlan = plan_service.build_plan(sample_graph, goal=goal, knowledge=knowledge)
 
@@ -86,7 +87,7 @@ def test_build_plan_single_goal_chain(plan_service, sample_graph):
 
 
 def test_build_plan_branching_goal(plan_service, sample_graph):
-    goal = LearningGoal(target_skill_ids=["algorithms"])
+    goal = LearningGoal(target_skill_ids=["algorithms"], mode=LearningMode.SURFACE)
     knowledge = UserKnowledge(user_id="u1")
     plan = plan_service.build_plan(sample_graph, goal=goal, knowledge=knowledge)
     position = {skill_id: idx for idx, skill_id in enumerate(plan.ordered_skill_ids)}
@@ -99,7 +100,7 @@ def test_build_plan_branching_goal(plan_service, sample_graph):
 
 
 def test_build_plan_excludes_mastered(plan_service, sample_graph):
-    goal = LearningGoal(target_skill_ids=["decorators"])
+    goal = LearningGoal(target_skill_ids=["decorators"], mode=LearningMode.SURFACE)
     knowledge = UserKnowledge(
         user_id="u1",
         statuses={
@@ -113,7 +114,7 @@ def test_build_plan_excludes_mastered(plan_service, sample_graph):
 
 
 def test_build_plan_unknown_goal(plan_service, sample_graph):
-    goal = LearningGoal(target_skill_ids=["nonexistent"])
+    goal = LearningGoal(target_skill_ids=["nonexistent"], mode=LearningMode.SURFACE)
     knowledge = UserKnowledge(user_id="u1")
 
     with pytest.raises(ValueError):
@@ -161,7 +162,7 @@ def test_build_plan_prioritizes_difficulty_when_depth_same(plan_service):
         ]
     }
     graph = SkillGraph.from_dict(raw_graph)
-    goal = LearningGoal(target_skill_ids=["goal"])
+    goal = LearningGoal(target_skill_ids=["goal"], mode=LearningMode.SURFACE)
     knowledge = UserKnowledge(user_id="u1")
 
     plan: LearningPlan = plan_service.build_plan(graph, goal=goal, knowledge=knowledge)
@@ -169,7 +170,29 @@ def test_build_plan_prioritizes_difficulty_when_depth_same(plan_service):
 
 
 def test_brancy_graph_goals(plan_service, branchy_graph):
-    goal = LearningGoal(target_skill_ids=["F"])
+    goal = LearningGoal(target_skill_ids=["F"], mode=LearningMode.SURFACE)
     knowledge = UserKnowledge(user_id="u1")
     plan: LearningPlan = plan_service.build_plan(branchy_graph, goal=goal, knowledge=knowledge)
     assert plan.ordered_skill_ids == ["B1", "B2", "D1", "D2", "E1", "E2", "B", "D", "E", "F"]
+
+
+def test_build_plan_balanced_adds_neighbour_branch(sample_graph, plan_service):
+    goal = LearningGoal(target_skill_ids=["algorithms"], mode=LearningMode.BALANCED)
+    knowledge = UserKnowledge(user_id="u1")
+    plan = plan_service.build_plan(sample_graph, goal=goal, knowledge=knowledge)
+
+    assert set(plan.ordered_skill_ids) == {
+        "python_basics",
+        "functions",
+        "data_structures",
+        "decorators",
+        "algorithms",
+    }
+
+
+def test_build_plan_deep_returns_entire_graph(sample_graph, plan_service):
+    goal = LearningGoal(target_skill_ids=["algorithms"], mode=LearningMode.DEEP)
+    knowledge = UserKnowledge(user_id="u1")
+    plan = plan_service.build_plan(sample_graph, goal=goal, knowledge=knowledge)
+
+    assert set(plan.ordered_skill_ids) == set(sample_graph.skills.keys())
