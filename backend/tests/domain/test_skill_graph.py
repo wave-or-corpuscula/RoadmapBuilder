@@ -4,6 +4,7 @@ import pytest
 from pytest import raises
 
 from backend.domain.skill import Skill
+from backend.domain.enums import LearningMode
 from backend.domain.skill_graph import SkillGraph
 
 
@@ -351,6 +352,32 @@ def test_add_skill_unknown_prerequisite(sample_graph):
 
     with raises(ValueError):
         sample_graph.add_skill(new_skill, prerequisites=["does_not_exist"])
+
+
+def test_get_subgraph_surface(sample_graph):
+    sub = sample_graph.get_subgraph(["algorithms"], mode=LearningMode.SURFACE)
+    assert set(sub.skills.keys()) == {"python_basics", "functions", "data_structures", "algorithms"}
+
+
+def test_get_subgraph_balanced_k1_adds_neighbour(sample_graph):
+    sub = sample_graph.get_subgraph(["algorithms"], mode=LearningMode.BALANCED, k=1)
+    assert set(sub.skills.keys()) == {
+        "python_basics",
+        "functions",
+        "data_structures",
+        "decorators",
+        "algorithms",
+    }
+
+
+def test_get_subgraph_balanced_k2_expands_further(sample_graph):
+    sub = sample_graph.get_subgraph(["algorithms"], mode=LearningMode.BALANCED, k=2)
+    assert "async_advanced" in sub.skills
+
+
+def test_get_subgraph_deep_returns_all(sample_graph):
+    sub = sample_graph.get_subgraph(["algorithms"], mode=LearningMode.DEEP)
+    assert set(sub.skills.keys()) == set(sample_graph.skills.keys())
 
 
 def test_depth_cache_computed_on_graph_creation(sample_graph):

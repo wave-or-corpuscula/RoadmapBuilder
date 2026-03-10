@@ -2,8 +2,10 @@ import json
 from typing import Dict, Set
 from collections import defaultdict
 import heapq
+from collections import deque
 
 from .skill import Skill
+from .enums import LearningMode
 
 
 class SkillGraph:
@@ -238,6 +240,103 @@ class SkillGraph:
                 stack.extend(self.prerequisites_map[current_id])
         
         return deps
+
+    def subgraph(self, subset: Set[str]) -> "SkillGraph":
+        """
+        Create an induced subgraph containing only nodes in subset.
+        """
+        for skill_id in subset:
+            if skill_id not in self.skills:
+                raise ValueError(f"No such skill: {skill_id}")
+
+        graph = SkillGraph()
+
+        for skill_id in subset:
+            graph.skills[skill_id] = self.skills[skill_id]
+
+        for skill_id in subset:
+            for prereq in self.prerequisites_map[skill_id]:
+                if prereq in subset:
+                    graph.prerequisites_map[skill_id].add(prereq)
+                    graph.dependents_map[prereq].add(skill_id)
+
+        # Original graph is a DAG; induced subgraph is also a DAG.
+        graph.recalculate_depth_cache()
+        return graph
+
+    def get_subgraph(
+        self,
+        targets: list[str],
+        mode: LearningMode,
+        k: int = 1,
+    ) -> "SkillGraph":
+        """
+        Extract a subgraph for given targets and learning mode.
+
+        Modes:
+            - SURFACE: only prerequisites needed to reach targets (+ targets)
+            - BALANCED: SURFACE + k-hop undirected neighborhood around SURFACE
+            - DEEP: entire graph
+        """
+        if not targets:
+            raise ValueError("Targets cannot be empty")
+
+        for target in targets:
+            if target not in self.skills:
+                raise ValueError(f"No such skill: {target}")
+
+        if mode == LearningMode.DEEP:
+            return self.subgraph(set(self.skills.keys()))
+
+        surface = set()
+        for target in targets:
+            surface.update(self.get_transitive_deps(target))
+            surface.add(target)
+
+        if mode == LearningMode.SURFACE:
+            return self.subgraph(surface)
+
+        if mode != LearningMode.BALANCED:
+            raise ValueError(f"Unknown learning mode: {mode}")
+
+        if k < 0:
+            raise ValueError("k must be >= 0")
+
+        expanded = self._k_hop_neighborhood(surface, k=k)
+
+        # Ensure every included node is learnable by including its prerequisite closure.
+        closed = set()
+        for skill_id in expanded:
+            closed.update(self.get_transitive_deps(skill_id))
+            closed.add(skill_id)
+
+        return self.subgraph(closed)
+
+    def _k_hop_neighborhood(self, start: Set[str], k: int) -> Set[str]:
+        """
+        Undirected k-hop neighborhood around start set.
+
+        Uses prerequisites and dependents as undirected edges.
+        """
+        if k == 0:
+            return set(start)
+
+        visited = set(start)
+        queue: deque[tuple[str, int]] = deque((node, 0) for node in start)
+
+        while queue:
+            node, dist = queue.popleft()
+            if dist >= k:
+                continue
+
+            neighbours = set(self.prerequisites_map[node]) | set(self.dependents_map[node])
+            for neighbour in neighbours:
+                if neighbour in visited:
+                    continue
+                visited.add(neighbour)
+                queue.append((neighbour, dist + 1))
+
+        return visited
 
     def topological_sort(self) -> list[str]:
         """
