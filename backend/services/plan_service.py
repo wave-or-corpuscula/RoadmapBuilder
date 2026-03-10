@@ -28,6 +28,7 @@ class PlanService:
 
         if not required:
             return LearningPlan(
+                id=None,
                 user_id=knowledge.user_id,
                 goal=goal,
                 ordered_skill_ids=[],
@@ -35,6 +36,7 @@ class PlanService:
 
         ordered = self._topological_sort_by_priority(graph=subgraph, subset=required)
         return LearningPlan(
+            id=None,
             user_id=knowledge.user_id,
             goal=goal,
             ordered_skill_ids=ordered,
