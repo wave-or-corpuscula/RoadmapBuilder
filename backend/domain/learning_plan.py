@@ -7,6 +7,7 @@ from backend.domain.user_knowledge import UserKnowledge
 
 @dataclass(frozen=True)
 class LearningPlan:
+    id: str | None
     user_id: str
     goal: LearningGoal
     ordered_skill_ids: list[str]
@@ -21,3 +22,13 @@ class LearningPlan:
             if not knowledge.is_mastered(skill_id):
                 return skill_id
         return None
+
+    def with_id(self, plan_id: str) -> "LearningPlan":
+        return LearningPlan(
+            id=plan_id,
+            user_id=self.user_id,
+            goal=self.goal,
+            ordered_skill_ids=self.ordered_skill_ids,
+            created_at=self.created_at,
+            is_active=self.is_active,
+        )

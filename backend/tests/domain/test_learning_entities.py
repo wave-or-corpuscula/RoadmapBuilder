@@ -29,6 +29,7 @@ def test_user_knowledge_mastered_helpers():
 def test_learning_plan_next_unmastered():
     goal = LearningGoal(target_skill_ids=["async"])
     plan = LearningPlan(
+        id=None,
         user_id="u1",
         goal=goal,
         ordered_skill_ids=["python", "functions", "async"],
