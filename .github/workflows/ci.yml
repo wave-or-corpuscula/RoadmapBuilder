@@ -51,7 +51,9 @@ jobs:
       - name: Run backend tests
         env:
           DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
-        run: pytest -c backend/pytest.ci.ini
+        run: |
+          cd backend
+          pytest -c pytest.ci.ini
       
       # Frontend
       - name: Install frontend dependencies
