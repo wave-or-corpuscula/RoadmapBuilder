@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from backend.api.v1.plans import get_graph_repo, get_plan_repo
+from backend.api.dependencies import get_graph_repo, get_plan_repo
 from backend.api.v1.router import api_router
 from backend.domain.skill_graph import SkillGraph
 from backend.repositories.graph_repository import InMemoryGraphRepository
