@@ -78,6 +78,10 @@ def test_update_plan_skill_status():
     assert updated.status_code == 200
     assert updated.json()["skill_statuses"]["a"] == "mastered"
 
+    progress = client.get("/api/v1/progress/u1")
+    assert progress.status_code == 200
+    assert progress.json()["statuses"]["a"] == "mastered"
+
 
 def test_rebuild_plan_keeps_id_and_excludes_mastered():
     raw_graph = {
@@ -104,3 +108,25 @@ def test_rebuild_plan_keeps_id_and_excludes_mastered():
     body = rebuilt.json()
     assert body["id"] == plan_id
     assert body["ordered_skill_ids"] == ["b", "goal"]
+
+
+def test_create_plan_uses_global_progress_when_mastered_not_provided():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "", "description": "", "difficulty": 1, "prerequisites": ["a"]},
+            {"id": "goal", "title": "", "description": "", "difficulty": 1, "prerequisites": ["b"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+
+    progress = client.patch("/api/v1/progress/u1/skills/a/status", json={"status": "mastered"})
+    assert progress.status_code == 200
+
+    created = client.post(
+        "/api/v1/plans",
+        json={"user_id": "u1", "target_skill_ids": ["goal"], "mode": "surface"},
+    )
+    assert created.status_code == 200
+    assert created.json()["ordered_skill_ids"] == ["b", "goal"]
