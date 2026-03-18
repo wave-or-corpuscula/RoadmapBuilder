@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
+from backend.api.dependencies import get_graph_repo, get_plan_repo, get_plan_service
 from backend.domain.enums import KnowledgeStatus, LearningMode
 from backend.domain.learning_goal import LearningGoal
 from backend.domain.learning_plan import LearningPlan
@@ -34,20 +35,6 @@ class PlanResponse(BaseModel):
     ordered_skill_ids: list[str]
     created_at: datetime
     is_active: bool
-
-
-def get_plan_service() -> PlanService:
-    return PlanService()
-
-
-def get_graph_repo() -> InMemoryGraphRepository:
-    # Overridden in app factory; fallback for import-time safety.
-    raise RuntimeError("Graph repository dependency not configured")
-
-
-def get_plan_repo() -> InMemoryPlanRepository:
-    # Overridden in app factory; fallback for import-time safety.
-    raise RuntimeError("Plan repository dependency not configured")
 
 
 @router.post("", response_model=PlanResponse)
