@@ -1,9 +1,11 @@
 from backend.repositories.graph_repository import InMemoryGraphRepository
 from backend.repositories.knowledge_repository import InMemoryKnowledgeRepository
 from backend.repositories.plan_repository import InMemoryPlanRepository
+from backend.repositories.user_repository import InMemoryUserRepository
 from backend.services.graph_service import GraphService
 from backend.services.plan_service import PlanService
 from backend.services.progress_service import ProgressService
+from backend.services.user_service import UserService
 
 
 def get_plan_service() -> PlanService:
@@ -18,6 +20,10 @@ def get_progress_service() -> ProgressService:
     return ProgressService()
 
 
+def get_user_service() -> UserService:
+    return UserService()
+
+
 def get_graph_repo() -> InMemoryGraphRepository:
     raise RuntimeError("Graph repository dependency not configured")
 
@@ -28,3 +34,7 @@ def get_plan_repo() -> InMemoryPlanRepository:
 
 def get_knowledge_repo() -> InMemoryKnowledgeRepository:
     raise RuntimeError("Knowledge repository dependency not configured")
+
+
+def get_user_repo() -> InMemoryUserRepository:
+    raise RuntimeError("User repository dependency not configured")
