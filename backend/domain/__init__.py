@@ -3,6 +3,7 @@ from .learning_goal import LearningGoal
 from .learning_plan import LearningPlan
 from .skill import Skill
 from .skill_graph import SkillGraph
+from .user import User
 from .user_knowledge import UserKnowledge
 
 __all__ = [
@@ -12,5 +13,6 @@ __all__ = [
     "LearningPlan",
     "Skill",
     "SkillGraph",
+    "User",
     "UserKnowledge",
 ]
