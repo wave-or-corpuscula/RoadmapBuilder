@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
+from backend.api.security import get_current_user_id
 from backend.api.dependencies import (
     get_graph_repo,
     get_knowledge_repo,
@@ -24,21 +25,21 @@ class ProgressResponse(BaseModel):
     statuses: dict[str, KnowledgeStatus]
 
 
-@router.get("/{user_id}", response_model=ProgressResponse)
+@router.get("/me", response_model=ProgressResponse)
 def get_progress(
-    user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
     progress_service: ProgressService = Depends(get_progress_service),
 ) -> ProgressResponse:
-    knowledge = progress_service.get_user_knowledge(repo=knowledge_repo, user_id=user_id)
+    knowledge = progress_service.get_user_knowledge(repo=knowledge_repo, user_id=current_user_id)
     return ProgressResponse(user_id=knowledge.user_id, statuses=knowledge.statuses)
 
 
-@router.patch("/{user_id}/skills/{skill_id}/status", response_model=ProgressResponse)
+@router.patch("/skills/{skill_id}/status", response_model=ProgressResponse)
 def update_progress_skill_status(
-    user_id: str,
     skill_id: str,
     payload: UpdateSkillStatusRequest,
+    current_user_id: str = Depends(get_current_user_id),
     graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
     knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
     progress_service: ProgressService = Depends(get_progress_service),
@@ -48,7 +49,7 @@ def update_progress_skill_status(
 
     knowledge = progress_service.update_skill_status(
         repo=knowledge_repo,
-        user_id=user_id,
+        user_id=current_user_id,
         skill_id=skill_id,
         status=payload.status,
     )

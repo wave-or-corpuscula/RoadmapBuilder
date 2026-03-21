@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
+from backend.api.security import get_current_user_id
 from backend.api.dependencies import (
     get_graph_repo,
     get_knowledge_repo,
@@ -23,7 +24,6 @@ router = APIRouter(prefix="/plans", tags=["plans"])
 
 
 class CreatePlanRequest(BaseModel):
-    user_id: str = Field(..., min_length=1)
     target_skill_ids: list[str] = Field(..., min_length=1)
     mode: LearningMode = LearningMode.BALANCED
     mastered_skill_ids: list[str] | None = None
@@ -69,6 +69,7 @@ def _to_response(plan: LearningPlan) -> PlanResponse:
 @router.post("", response_model=PlanResponse)
 def create_plan(
     payload: CreatePlanRequest,
+    current_user_id: str = Depends(get_current_user_id),
     plan_service: PlanService = Depends(get_plan_service),
     graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
     knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
@@ -77,13 +78,13 @@ def create_plan(
     graph = graph_repo.get()
     goal = LearningGoal(target_skill_ids=payload.target_skill_ids, mode=payload.mode)
 
-    base_knowledge = knowledge_repo.get_or_create(payload.user_id)
+    base_knowledge = knowledge_repo.get_or_create(current_user_id)
     statuses = dict(base_knowledge.statuses)
     if payload.mastered_skill_ids is not None:
         for skill_id in payload.mastered_skill_ids:
             statuses[skill_id] = KnowledgeStatus.MASTERED
 
-    knowledge = UserKnowledge(user_id=payload.user_id, statuses=statuses)
+    knowledge = UserKnowledge(user_id=current_user_id, statuses=statuses)
 
     plan: LearningPlan = plan_service.build_plan(graph=graph, goal=goal, knowledge=knowledge)
     for skill_id in plan.ordered_skill_ids:
@@ -97,10 +98,11 @@ def create_plan(
 @router.get("/{plan_id}", response_model=PlanResponse)
 def get_plan(
     plan_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     plan = plan_repo.get(plan_id)
-    if plan is None:
+    if plan is None or plan.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     return _to_response(plan)
 
@@ -109,13 +111,14 @@ def get_plan(
 def rebuild_plan(
     plan_id: str,
     payload: RebuildPlanRequest,
+    current_user_id: str = Depends(get_current_user_id),
     plan_service: PlanService = Depends(get_plan_service),
     graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
     knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
     plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     current = plan_repo.get(plan_id)
-    if current is None:
+    if current is None or current.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
 
     target_skill_ids = payload.target_skill_ids or current.goal.target_skill_ids
@@ -145,11 +148,12 @@ def update_plan_skill_status(
     plan_id: str,
     skill_id: str,
     payload: UpdatePlanSkillStatusRequest,
+    current_user_id: str = Depends(get_current_user_id),
     knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
     plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     plan = plan_repo.get(plan_id)
-    if plan is None:
+    if plan is None or plan.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
 
     try:
