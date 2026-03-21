@@ -2,6 +2,7 @@ from backend.repositories.graph_repository import InMemoryGraphRepository
 from backend.repositories.knowledge_repository import InMemoryKnowledgeRepository
 from backend.repositories.plan_repository import InMemoryPlanRepository
 from backend.repositories.user_repository import InMemoryUserRepository
+from backend.services.auth_service import AuthService
 from backend.services.graph_service import GraphService
 from backend.services.plan_service import PlanService
 from backend.services.progress_service import ProgressService
@@ -22,6 +23,10 @@ def get_progress_service() -> ProgressService:
 
 def get_user_service() -> UserService:
     return UserService()
+
+
+def get_auth_service() -> AuthService:
+    return AuthService()
 
 
 def get_graph_repo() -> InMemoryGraphRepository:
