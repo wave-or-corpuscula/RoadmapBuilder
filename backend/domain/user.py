@@ -6,3 +6,4 @@ class User:
     id: str
     email: str
     display_name: str
+    hashed_password: str
