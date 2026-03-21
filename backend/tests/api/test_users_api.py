@@ -15,21 +15,30 @@ def _make_client() -> TestClient:
 
 def test_get_me_creates_default_user():
     client = _make_client()
+    auth = client.post(
+        "/api/v1/auth/register",
+        json={"email": "u1@example.com", "password": "supersecret", "display_name": "u1"},
+    )
+    access_token = auth.json()["access_token"]
 
-    resp = client.get("/api/v1/users/me", headers={"X-User-Id": "u1"})
+    resp = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"})
     assert resp.status_code == 200
     body = resp.json()
-    assert body["id"] == "u1"
-    assert body["email"] == "u1@local.dev"
+    assert body["email"] == "u1@example.com"
     assert body["display_name"] == "u1"
 
 
 def test_patch_me_updates_user():
     client = _make_client()
+    auth = client.post(
+        "/api/v1/auth/register",
+        json={"email": "u1@example.com", "password": "supersecret", "display_name": "u1"},
+    )
+    access_token = auth.json()["access_token"]
 
     updated = client.patch(
         "/api/v1/users/me",
-        headers={"X-User-Id": "u1"},
+        headers={"Authorization": f"Bearer {access_token}"},
         json={"email": "u1@example.com", "display_name": "Andrey"},
     )
     assert updated.status_code == 200
@@ -37,14 +46,14 @@ def test_patch_me_updates_user():
     assert body["email"] == "u1@example.com"
     assert body["display_name"] == "Andrey"
 
-    fetched = client.get("/api/v1/users/me", headers={"X-User-Id": "u1"})
+    fetched = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"})
     assert fetched.status_code == 200
     assert fetched.json()["email"] == "u1@example.com"
     assert fetched.json()["display_name"] == "Andrey"
 
 
-def test_get_me_requires_header():
+def test_get_me_requires_auth():
     client = _make_client()
 
     resp = client.get("/api/v1/users/me")
-    assert resp.status_code == 400
+    assert resp.status_code == 401
