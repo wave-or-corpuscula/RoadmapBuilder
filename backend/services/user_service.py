@@ -12,6 +12,7 @@ class UserService:
             id=user_id,
             email=f"{user_id}@local.dev",
             display_name=user_id,
+            hashed_password="",
         )
         return repo.save(created)
 
@@ -27,5 +28,6 @@ class UserService:
             id=current.id,
             email=email if email is not None else current.email,
             display_name=display_name if display_name is not None else current.display_name,
+            hashed_password=current.hashed_password,
         )
         return repo.save(updated)
