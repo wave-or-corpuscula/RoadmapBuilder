@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import type { SubmitEventHandler } from 'react'
 
-import type { LearningMode, Plan } from '../shared/types/api'
+import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
 
 type Props = {
   onBack: () => void
-  onCreatePlan: (targetSkillIds: string[], mode: LearningMode) => Promise<Plan>
+  onImportPlan: (payload: ImportPlanPayload) => Promise<{ plan: Plan; graph: PlanGraph }>
+  onUpdatePlanSkillStatus: (planId: string, skillId: string, status: KnowledgeStatus) => Promise<Plan>
 }
 
-export default function PlanBuilderPage({ onBack, onCreatePlan }: Props) {
-  const [targetsRaw, setTargetsRaw] = useState('goal')
-  const [mode, setMode] = useState<LearningMode>('balanced')
+export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkillStatus }: Props) {
+  const [rawJson, setRawJson] = useState('{\n  "skills": [],\n  "target_skill_ids": [],\n  "mode": "balanced"\n}')
   const [createdPlan, setCreatedPlan] = useState<Plan | null>(null)
+  const [graph, setGraph] = useState<PlanGraph | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -19,26 +20,40 @@ export default function PlanBuilderPage({ onBack, onCreatePlan }: Props) {
     event.preventDefault()
     setError(null)
     setCreatedPlan(null)
+    setGraph(null)
 
-    const targetSkillIds = targetsRaw
-      .split(',')
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0)
-
-    if (targetSkillIds.length === 0) {
-      setError('Provide at least one target skill id.')
+    let payload: ImportPlanPayload
+    try {
+      payload = JSON.parse(rawJson) as ImportPlanPayload
+    } catch {
+      setError('JSON is invalid.')
       return
     }
 
     setIsLoading(true)
     try {
-      const plan = await onCreatePlan(targetSkillIds, mode)
+      const result = await onImportPlan(payload)
+      const plan = result.plan
       setCreatedPlan(plan)
+      setGraph(result.graph)
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : 'Failed to create plan'
+      const message = submitError instanceof Error ? submitError.message : 'Failed to import plan'
       setError(message)
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  async function handleStatusChange(skillId: string, status: KnowledgeStatus) {
+    if (!createdPlan) {
+      return
+    }
+    try {
+      const updatedPlan = await onUpdatePlanSkillStatus(createdPlan.id, skillId, status)
+      setCreatedPlan(updatedPlan)
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : 'Failed to update status'
+      setError(message)
     }
   }
 
@@ -46,8 +61,8 @@ export default function PlanBuilderPage({ onBack, onCreatePlan }: Props) {
     <main className="app-shell">
       <header className="topbar">
         <div>
-          <h1>Plan Builder</h1>
-          <p>Create a personalized learning plan from backend graph.</p>
+          <h1>Plan Import</h1>
+          <p>Upload plan JSON, then track progress directly in imported graph.</p>
         </div>
         <button className="secondary" onClick={onBack}>
           Back to dashboard
@@ -57,37 +72,55 @@ export default function PlanBuilderPage({ onBack, onCreatePlan }: Props) {
       <section className="card">
         <form className="form" onSubmit={handleSubmit}>
           <label>
-            Target skill IDs (comma separated)
-            <input
-              value={targetsRaw}
-              onChange={(event) => setTargetsRaw(event.target.value)}
-              placeholder="goal, another_goal"
+            Plan JSON
+            <textarea
+              rows={12}
+              value={rawJson}
+              onChange={(event) => setRawJson(event.target.value)}
+              spellCheck={false}
             />
           </label>
           <label>
-            Learning mode
-            <select value={mode} onChange={(event) => setMode(event.target.value as LearningMode)}>
-              <option value="surface">surface</option>
-              <option value="balanced">balanced</option>
-              <option value="deep">deep</option>
-            </select>
+            Or pick JSON file
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={async (event) => {
+                const file = event.target.files?.[0]
+                if (!file) {
+                  return
+                }
+                const text = await file.text()
+                setRawJson(text)
+              }}
+            />
           </label>
           {error ? <p className="error-text">{error}</p> : null}
           <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Building...' : 'Create plan'}
+            {isLoading ? 'Importing...' : 'Import plan'}
           </button>
         </form>
       </section>
 
-      {createdPlan ? (
+      {createdPlan && graph ? (
         <section className="card">
-          <h2>Created plan</h2>
+          <h2>Imported graph</h2>
           <p>Plan ID: {createdPlan.id}</p>
           <ul className="plain-list">
-            {createdPlan.ordered_skill_ids.map((skillId) => (
-              <li key={skillId}>
-                <span>{skillId}</span>
-                <strong>{createdPlan.skill_statuses[skillId]}</strong>
+            {graph.skills.map((skill) => (
+              <li key={skill.id}>
+                <span>
+                  {skill.id}
+                  {skill.prerequisites.length > 0 ? ` <- ${skill.prerequisites.join(', ')}` : ''}
+                </span>
+                <select
+                  value={createdPlan.skill_statuses[skill.id] ?? 'unknown'}
+                  onChange={(event) => handleStatusChange(skill.id, event.target.value as KnowledgeStatus)}
+                >
+                  <option value="unknown">unknown</option>
+                  <option value="learning">learning</option>
+                  <option value="mastered">mastered</option>
+                </select>
               </li>
             ))}
           </ul>

@@ -3,7 +3,7 @@ import type { Progress, User } from '../shared/types/api'
 type Props = {
   user: User
   progress: Progress | null
-  onOpenBuilder: () => void
+  onOpenImport: () => void
   onSignOut: () => void
   onRefreshProgress: () => Promise<void>
 }
@@ -11,7 +11,7 @@ type Props = {
 export default function DashboardPage({
   user,
   progress,
-  onOpenBuilder,
+  onOpenImport,
   onSignOut,
   onRefreshProgress,
 }: Props) {
@@ -31,8 +31,8 @@ export default function DashboardPage({
           <button className="secondary" onClick={onRefreshProgress}>
             Refresh progress
           </button>
-          <button className="secondary" onClick={onOpenBuilder}>
-            Create plan
+          <button className="secondary" onClick={onOpenImport}>
+            Import plan JSON
           </button>
           <button className="danger" onClick={onSignOut}>
             Sign out

@@ -85,12 +85,14 @@
 
 input,
 select,
+textarea,
 button {
   font: inherit;
 }
 
 input,
-select {
+select,
+textarea {
   width: 100%;
   border: 1px solid #c3cfe1;
   background: #fff;

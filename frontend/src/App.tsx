@@ -5,10 +5,10 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import PlanBuilderPage from './pages/PlanBuilderPage'
 import { getMe, login, refresh, register } from './shared/api/authApi'
-import { createPlan, getProgress } from './shared/api/planApi'
+import { getPlanGraph, getProgress, importPlan, updatePlanSkillStatus } from './shared/api/planApi'
 import { ApiError } from './shared/api/client'
 import { clearAuthState, getAuthState, setAuthState } from './store/authStore'
-import type { LearningMode, Plan, Progress, User } from './shared/types/api'
+import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph, Progress, User } from './shared/types/api'
 
 type AppPath = '/dashboard' | '/plans/new'
 
@@ -111,14 +111,25 @@ function App() {
     setProgress(currentProgress)
   }
 
-  async function handleCreatePlan(targetSkillIds: string[], mode: LearningMode): Promise<Plan> {
+  async function handleImportPlan(payload: ImportPlanPayload): Promise<{ plan: Plan; graph: PlanGraph }> {
     if (!accessToken) {
       throw new Error('Not authenticated')
     }
-    const created = await createPlan(accessToken, targetSkillIds, mode)
+    const created = await importPlan(accessToken, payload)
+    const graph = await getPlanGraph(accessToken, created.id)
     const currentProgress = await getProgress(accessToken)
     setProgress(currentProgress)
-    return created
+    return { plan: created, graph }
+  }
+
+  async function handleUpdatePlanSkillStatus(planId: string, skillId: string, status: KnowledgeStatus): Promise<Plan> {
+    if (!accessToken) {
+      throw new Error('Not authenticated')
+    }
+    const updatedPlan = await updatePlanSkillStatus(accessToken, planId, skillId, status)
+    const currentProgress = await getProgress(accessToken)
+    setProgress(currentProgress)
+    return updatedPlan
   }
 
   function handleSignOut() {
@@ -143,14 +154,20 @@ function App() {
   }
 
   if (path === '/plans/new') {
-    return <PlanBuilderPage onBack={() => navigate('/dashboard')} onCreatePlan={handleCreatePlan} />
+    return (
+      <PlanBuilderPage
+        onBack={() => navigate('/dashboard')}
+        onImportPlan={handleImportPlan}
+        onUpdatePlanSkillStatus={handleUpdatePlanSkillStatus}
+      />
+    )
   }
 
   return (
     <DashboardPage
       user={user}
       progress={progress}
-      onOpenBuilder={() => navigate('/plans/new')}
+      onOpenImport={() => navigate('/plans/new')}
       onSignOut={handleSignOut}
       onRefreshProgress={refreshProgress}
     />
