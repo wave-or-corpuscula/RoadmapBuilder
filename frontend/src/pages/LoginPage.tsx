@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { SubmitEvent } from 'react'
+import type { SubmitEventHandler } from 'react'
 
 type Props = {
   onLogin: (email: string, password: string) => Promise<void>
@@ -14,7 +14,7 @@ export default function LoginPage({ onLogin, onRegister }: Props) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function handleSubmit(event: SubmitEvent<HTMLFormElement>) {
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
     setError(null)
     setIsLoading(true)

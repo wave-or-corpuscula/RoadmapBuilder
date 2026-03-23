@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { SubmitEventHandler } from 'react'
 
 import type { LearningMode, Plan } from '../shared/types/api'
 
@@ -15,7 +15,7 @@ export default function PlanBuilderPage({ onBack, onCreatePlan }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
     setError(null)
     setCreatedPlan(null)
