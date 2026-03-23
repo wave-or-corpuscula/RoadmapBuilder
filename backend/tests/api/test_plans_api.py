@@ -4,13 +4,15 @@ from backend.domain.skill_graph import SkillGraph
 from backend.main import create_app
 
 
-def _auth_headers(client: TestClient, email: str = "u1@example.com") -> dict[str, str]:
+def _auth_context(client: TestClient, email: str = "u1@example.com") -> tuple[dict[str, str], str]:
     registered = client.post(
         "/api/v1/auth/register",
         json={"email": email, "password": "supersecret", "display_name": "u1"},
     )
     token = registered.json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
+    headers = {"Authorization": f"Bearer {token}"}
+    me = client.get("/api/v1/users/me", headers=headers)
+    return headers, me.json()["id"]
 
 
 def test_create_plan_surface_returns_expected_order():
@@ -23,7 +25,7 @@ def test_create_plan_surface_returns_expected_order():
     }
     app = create_app(graph=SkillGraph.from_dict(raw_graph))
     client = TestClient(app)
-    headers = _auth_headers(client)
+    headers, user_id = _auth_context(client)
 
     resp = client.post(
         "/api/v1/plans",
@@ -37,7 +39,7 @@ def test_create_plan_surface_returns_expected_order():
     assert resp.status_code == 200
     body = resp.json()
     assert body["id"]
-    assert body["user_id"] == "u1"
+    assert body["user_id"] == user_id
     assert body["goal"]["target_skill_ids"] == ["goal"]
     assert body["goal"]["mode"] == "surface"
     assert body["ordered_skill_ids"] == ["a", "b", "goal"]
@@ -53,7 +55,7 @@ def test_get_plan_by_id():
     }
     app = create_app(graph=SkillGraph.from_dict(raw_graph))
     client = TestClient(app)
-    headers = _auth_headers(client)
+    headers, _ = _auth_context(client)
 
     created = client.post(
         "/api/v1/plans",
@@ -76,7 +78,7 @@ def test_update_plan_skill_status():
     }
     app = create_app(graph=SkillGraph.from_dict(raw_graph))
     client = TestClient(app)
-    headers = _auth_headers(client)
+    headers, _ = _auth_context(client)
 
     created = client.post(
         "/api/v1/plans",
@@ -108,7 +110,7 @@ def test_rebuild_plan_keeps_id_and_excludes_mastered():
     }
     app = create_app(graph=SkillGraph.from_dict(raw_graph))
     client = TestClient(app)
-    headers = _auth_headers(client)
+    headers, _ = _auth_context(client)
 
     created = client.post(
         "/api/v1/plans",
@@ -138,7 +140,7 @@ def test_create_plan_uses_global_progress_when_mastered_not_provided():
     }
     app = create_app(graph=SkillGraph.from_dict(raw_graph))
     client = TestClient(app)
-    headers = _auth_headers(client)
+    headers, _ = _auth_context(client)
 
     progress = client.patch("/api/v1/progress/skills/a/status", json={"status": "mastered"}, headers=headers)
     assert progress.status_code == 200

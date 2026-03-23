@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.dependencies import (
     get_graph_repo,
@@ -14,8 +15,22 @@ from backend.repositories.plan_repository import InMemoryPlanRepository
 from backend.repositories.user_repository import InMemoryUserRepository
 
 
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+
 def create_app(graph: SkillGraph | None = None) -> FastAPI:
     app = FastAPI(title="Adaptive Roadmap Builder")
+
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=DEFAULT_CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     graph_repo = InMemoryGraphRepository(graph or SkillGraph())
     plan_repo = InMemoryPlanRepository()
