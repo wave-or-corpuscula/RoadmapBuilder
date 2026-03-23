@@ -1,5 +1,5 @@
 import { apiRequest } from './client'
-import type { KnowledgeStatus, LearningMode, Plan, Progress } from '../types/api'
+import type { ImportPlanPayload, KnowledgeStatus, LearningMode, Plan, PlanGraph, Progress } from '../types/api'
 
 export function createPlan(
   token: string,
@@ -15,6 +15,26 @@ export function createPlan(
       mode,
       mastered_skill_ids: masteredSkillIds,
     },
+  })
+}
+
+export function importPlan(token: string, payload: ImportPlanPayload): Promise<Plan> {
+  return apiRequest<Plan>('/plans/import', {
+    method: 'POST',
+    token,
+    body: payload,
+  })
+}
+
+export function getPlanGraph(token: string, planId: string): Promise<PlanGraph> {
+  return apiRequest<PlanGraph>(`/plans/${planId}/graph`, { token })
+}
+
+export function updatePlanSkillStatus(token: string, planId: string, skillId: string, status: KnowledgeStatus): Promise<Plan> {
+  return apiRequest<Plan>(`/plans/${planId}/skills/${skillId}/status`, {
+    method: 'PATCH',
+    token,
+    body: { status },
   })
 }
 

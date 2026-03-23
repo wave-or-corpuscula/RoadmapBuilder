@@ -27,7 +27,26 @@ export type Plan = {
   is_active: boolean
 }
 
+export type PlanGraphSkill = {
+  id: string
+  title: string
+  description: string
+  difficulty: number
+  prerequisites: string[]
+}
+
+export type PlanGraph = {
+  skills: PlanGraphSkill[]
+}
+
 export type Progress = {
   user_id: string
   statuses: Record<string, KnowledgeStatus>
+}
+
+export type ImportPlanPayload = {
+  skills: PlanGraphSkill[]
+  target_skill_ids: string[]
+  mode: LearningMode
+  mastered_skill_ids?: string[]
 }
