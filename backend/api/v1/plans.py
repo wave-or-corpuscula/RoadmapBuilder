@@ -13,6 +13,7 @@ from backend.api.dependencies import (
 from backend.domain.enums import KnowledgeStatus, LearningMode
 from backend.domain.learning_goal import LearningGoal
 from backend.domain.learning_plan import LearningPlan
+from backend.domain.skill_graph import SkillGraph
 from backend.domain.user_knowledge import UserKnowledge
 from backend.repositories.graph_repository import InMemoryGraphRepository
 from backend.repositories.knowledge_repository import InMemoryKnowledgeRepository
@@ -54,6 +55,28 @@ class UpdatePlanSkillStatusRequest(BaseModel):
     status: KnowledgeStatus
 
 
+class ImportSkillItem(BaseModel):
+    id: str = Field(..., min_length=1)
+    title: str = Field(..., min_length=1)
+    description: str = ""
+    difficulty: int = Field(..., ge=1, le=10)
+    prerequisites: list[str] = Field(default_factory=list)
+
+
+class ImportPlanRequest(BaseModel):
+    skills: list[ImportSkillItem] = Field(..., min_length=1)
+    target_skill_ids: list[str] = Field(..., min_length=1)
+    mode: LearningMode = LearningMode.BALANCED
+    mastered_skill_ids: list[str] | None = None
+
+
+class ImportTemplateResponse(BaseModel):
+    skills: list[ImportSkillItem]
+    target_skill_ids: list[str]
+    mode: LearningMode
+    mastered_skill_ids: list[str]
+
+
 def _to_response(plan: LearningPlan) -> PlanResponse:
     return PlanResponse(
         id=plan.id or "",
@@ -64,6 +87,31 @@ def _to_response(plan: LearningPlan) -> PlanResponse:
         created_at=plan.created_at,
         is_active=plan.is_active,
     )
+
+
+def _graph_to_payload(graph: SkillGraph) -> dict:
+    skills = []
+    for skill_id in sorted(graph.skills.keys()):
+        skill = graph.skills[skill_id]
+        skills.append(
+            {
+                "id": skill.id,
+                "title": skill.title,
+                "description": skill.description,
+                "difficulty": skill.difficulty,
+                "prerequisites": sorted(graph.prerequisites_map[skill_id]),
+            }
+        )
+    return {"skills": skills}
+
+
+def _enrich_plan_statuses(plan: LearningPlan, knowledge: UserKnowledge) -> LearningPlan:
+    enriched = plan
+    for skill_id in enriched.ordered_skill_ids:
+        status_value = knowledge.get_status(skill_id)
+        if status_value != KnowledgeStatus.UNKNOWN:
+            enriched = enriched.with_skill_status(skill_id, status_value)
+    return enriched
 
 
 @router.post("", response_model=PlanResponse)
@@ -87,10 +135,69 @@ def create_plan(
     knowledge = UserKnowledge(user_id=current_user_id, statuses=statuses)
 
     plan: LearningPlan = plan_service.build_plan(graph=graph, goal=goal, knowledge=knowledge)
-    for skill_id in plan.ordered_skill_ids:
-        status_value = knowledge.get_status(skill_id)
-        if status_value != KnowledgeStatus.UNKNOWN:
-            plan = plan.with_skill_status(skill_id, status_value)
+    plan = _enrich_plan_statuses(plan, knowledge)
+    plan = plan_repo.save(plan)
+    return _to_response(plan)
+
+
+@router.get("/import-template", response_model=ImportTemplateResponse)
+def get_import_template() -> ImportTemplateResponse:
+    return ImportTemplateResponse(
+        skills=[
+            ImportSkillItem(
+                id="python_basics",
+                title="Python Basics",
+                description="Syntax and control flow",
+                difficulty=1,
+                prerequisites=[],
+            ),
+            ImportSkillItem(
+                id="functions",
+                title="Functions",
+                description="Function definitions and scope",
+                difficulty=2,
+                prerequisites=["python_basics"],
+            ),
+            ImportSkillItem(
+                id="api_design",
+                title="API Design",
+                description="REST basics and resource modeling",
+                difficulty=3,
+                prerequisites=["functions"],
+            ),
+        ],
+        target_skill_ids=["api_design"],
+        mode=LearningMode.BALANCED,
+        mastered_skill_ids=[],
+    )
+
+
+@router.post("/import", response_model=PlanResponse)
+def import_plan(
+    payload: ImportPlanRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_service: PlanService = Depends(get_plan_service),
+    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
+    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+) -> PlanResponse:
+    graph_payload = {"skills": [item.model_dump() for item in payload.skills]}
+
+    try:
+        imported_graph = SkillGraph.from_dict(graph_payload)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    goal = LearningGoal(target_skill_ids=payload.target_skill_ids, mode=payload.mode)
+
+    base_knowledge = knowledge_repo.get_or_create(current_user_id)
+    statuses = dict(base_knowledge.statuses)
+    if payload.mastered_skill_ids is not None:
+        for skill_id in payload.mastered_skill_ids:
+            statuses[skill_id] = KnowledgeStatus.MASTERED
+    knowledge = UserKnowledge(user_id=current_user_id, statuses=statuses)
+
+    plan = plan_service.build_plan(graph=imported_graph, goal=goal, knowledge=knowledge)
+    plan = _enrich_plan_statuses(plan, knowledge).with_graph_payload(graph_payload)
     plan = plan_repo.save(plan)
     return _to_response(plan)
 
@@ -105,6 +212,24 @@ def get_plan(
     if plan is None or plan.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     return _to_response(plan)
+
+
+@router.get("/{plan_id}/graph")
+def get_plan_graph(
+    plan_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+) -> dict:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    if plan.graph_payload is not None:
+        return plan.graph_payload
+
+    subgraph = graph_repo.get().get_subgraph(plan.goal.target_skill_ids, plan.goal.mode)
+    return _graph_to_payload(subgraph)
 
 
 @router.patch("/{plan_id}/rebuild", response_model=PlanResponse)
@@ -133,11 +258,14 @@ def rebuild_plan(
 
     knowledge = UserKnowledge(user_id=current.user_id, statuses=statuses)
 
-    rebuilt = plan_service.build_plan(graph=graph_repo.get(), goal=goal, knowledge=knowledge)
-    for skill_id in rebuilt.ordered_skill_ids:
-        status_value = knowledge.get_status(skill_id)
-        if status_value != KnowledgeStatus.UNKNOWN:
-            rebuilt = rebuilt.with_skill_status(skill_id, status_value)
+    source_graph = graph_repo.get()
+    if current.graph_payload is not None:
+        source_graph = SkillGraph.from_dict(current.graph_payload)
+
+    rebuilt = plan_service.build_plan(graph=source_graph, goal=goal, knowledge=knowledge)
+    rebuilt = _enrich_plan_statuses(rebuilt, knowledge)
+    if current.graph_payload is not None:
+        rebuilt = rebuilt.with_graph_payload(current.graph_payload)
     rebuilt = rebuilt.with_id(plan_id)
     rebuilt = plan_repo.save(rebuilt)
     return _to_response(rebuilt)

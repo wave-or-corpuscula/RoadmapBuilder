@@ -13,6 +13,7 @@ class LearningPlan:
     goal: LearningGoal
     ordered_skill_ids: list[str]
     skill_statuses: dict[str, KnowledgeStatus] = field(default_factory=dict)
+    graph_payload: dict | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     is_active: bool = True
 
@@ -42,6 +43,7 @@ class LearningPlan:
             goal=self.goal,
             ordered_skill_ids=self.ordered_skill_ids,
             skill_statuses=updated,
+            graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
         )
@@ -59,6 +61,19 @@ class LearningPlan:
             goal=self.goal,
             ordered_skill_ids=self.ordered_skill_ids,
             skill_statuses=dict(self.skill_statuses),
+            graph_payload=self.graph_payload,
+            created_at=self.created_at,
+            is_active=self.is_active,
+        )
+
+    def with_graph_payload(self, graph_payload: dict) -> "LearningPlan":
+        return LearningPlan(
+            id=self.id,
+            user_id=self.user_id,
+            goal=self.goal,
+            ordered_skill_ids=self.ordered_skill_ids,
+            skill_statuses=dict(self.skill_statuses),
+            graph_payload=graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
         )

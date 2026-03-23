@@ -46,6 +46,58 @@ def test_create_plan_surface_returns_expected_order():
     assert body["skill_statuses"] == {"a": "unknown", "b": "unknown", "goal": "unknown"}
 
 
+def test_get_import_template():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    resp = client.get("/api/v1/plans/import-template", headers=headers)
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "skills" in body
+    assert "target_skill_ids" in body
+    assert "mode" in body
+
+
+def test_import_plan_and_get_plan_graph():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    imported = client.post(
+        "/api/v1/plans/import",
+        headers=headers,
+        json={
+            "skills": [
+                {"id": "x", "title": "X", "description": "", "difficulty": 1, "prerequisites": []},
+                {"id": "y", "title": "Y", "description": "", "difficulty": 2, "prerequisites": ["x"]},
+                {"id": "z", "title": "Z", "description": "", "difficulty": 3, "prerequisites": ["y"]},
+            ],
+            "target_skill_ids": ["z"],
+            "mode": "surface",
+            "mastered_skill_ids": [],
+        },
+    )
+    assert imported.status_code == 200
+    plan_id = imported.json()["id"]
+    assert imported.json()["ordered_skill_ids"] == ["x", "y", "z"]
+
+    graph = client.get(f"/api/v1/plans/{plan_id}/graph", headers=headers)
+    assert graph.status_code == 200
+    skill_ids = {item["id"] for item in graph.json()["skills"]}
+    assert skill_ids == {"x", "y", "z"}
+
+
 def test_get_plan_by_id():
     raw_graph = {
         "skills": [
