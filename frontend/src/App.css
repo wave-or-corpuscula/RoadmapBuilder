@@ -146,6 +146,70 @@ button:disabled {
   color: #9a1f1f;
 }
 
+.graph-scroll {
+  overflow: auto;
+  border: 1px solid #dce4f2;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fcfdff, #f4f7fb);
+  max-height: 72vh;
+}
+
+.graph-stage {
+  position: relative;
+}
+
+.graph-edges {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.graph-node {
+  position: absolute;
+  border: 1px solid #c6d2e6;
+  border-left-width: 5px;
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 6px 14px rgba(17, 35, 68, 0.08);
+}
+
+.graph-node.unknown {
+  border-left-color: #8ea0bf;
+}
+
+.graph-node.learning {
+  border-left-color: #d49a29;
+}
+
+.graph-node.mastered {
+  border-left-color: #2c8f4a;
+}
+
+.graph-node header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.graph-node h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.graph-node header span {
+  color: #5f7090;
+  font-size: 0.82rem;
+}
+
+.graph-node p {
+  margin: 0 0 10px;
+  color: #445573;
+  font-size: 0.84rem;
+}
+
 @media (max-width: 700px) {
   .topbar {
     flex-direction: column;

@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { SubmitEventHandler } from 'react'
 
+import PlanGraphView from '../components/PlanGraphView'
+import { getImportTemplate } from '../shared/api/planApi'
 import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
 
 type Props = {
@@ -16,6 +18,28 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
+  useEffect(() => {
+    async function loadTemplate() {
+      try {
+        const template = await getImportTemplate()
+        setRawJson(JSON.stringify(template, null, 2))
+      } catch {
+        // Keep fallback starter JSON if template endpoint is unavailable.
+      }
+    }
+    void loadTemplate()
+  }, [])
+
+  function validatePayload(payload: ImportPlanPayload): string | null {
+    if (!Array.isArray(payload.skills) || payload.skills.length === 0) {
+      return 'skills must be a non-empty array.'
+    }
+    if (!Array.isArray(payload.target_skill_ids) || payload.target_skill_ids.length === 0) {
+      return 'target_skill_ids must be a non-empty array.'
+    }
+    return null
+  }
+
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
     setError(null)
@@ -27,6 +51,12 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
       payload = JSON.parse(rawJson) as ImportPlanPayload
     } catch {
       setError('JSON is invalid.')
+      return
+    }
+
+    const validationError = validatePayload(payload)
+    if (validationError) {
+      setError(validationError)
       return
     }
 
@@ -106,24 +136,7 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
         <section className="card">
           <h2>Imported graph</h2>
           <p>Plan ID: {createdPlan.id}</p>
-          <ul className="plain-list">
-            {graph.skills.map((skill) => (
-              <li key={skill.id}>
-                <span>
-                  {skill.id}
-                  {skill.prerequisites.length > 0 ? ` <- ${skill.prerequisites.join(', ')}` : ''}
-                </span>
-                <select
-                  value={createdPlan.skill_statuses[skill.id] ?? 'unknown'}
-                  onChange={(event) => handleStatusChange(skill.id, event.target.value as KnowledgeStatus)}
-                >
-                  <option value="unknown">unknown</option>
-                  <option value="learning">learning</option>
-                  <option value="mastered">mastered</option>
-                </select>
-              </li>
-            ))}
-          </ul>
+          <PlanGraphView graph={graph} plan={createdPlan} onStatusChange={handleStatusChange} />
         </section>
       ) : null}
     </main>
