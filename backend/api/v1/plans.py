@@ -105,9 +105,14 @@ def _graph_to_payload(graph: SkillGraph) -> dict:
     return {"skills": skills}
 
 
-def _enrich_plan_statuses(plan: LearningPlan, knowledge: UserKnowledge) -> LearningPlan:
+def _enrich_plan_statuses(
+    plan: LearningPlan,
+    knowledge: UserKnowledge,
+    skill_ids: list[str] | None = None,
+) -> LearningPlan:
     enriched = plan
-    for skill_id in enriched.ordered_skill_ids:
+    status_scope = skill_ids if skill_ids is not None else enriched.ordered_skill_ids
+    for skill_id in status_scope:
         status_value = knowledge.get_status(skill_id)
         if status_value != KnowledgeStatus.UNKNOWN:
             enriched = enriched.with_skill_status(skill_id, status_value)
@@ -197,7 +202,9 @@ def import_plan(
     knowledge = UserKnowledge(user_id=current_user_id, statuses=statuses)
 
     plan = plan_service.build_plan(graph=imported_graph, goal=goal, knowledge=knowledge)
-    plan = _enrich_plan_statuses(plan, knowledge).with_graph_payload(graph_payload)
+    plan = plan.with_graph_payload(graph_payload)
+    imported_skill_ids = [skill.id for skill in payload.skills]
+    plan = _enrich_plan_statuses(plan, knowledge, imported_skill_ids)
     plan = plan_repo.save(plan)
     return _to_response(plan)
 
@@ -263,7 +270,10 @@ def rebuild_plan(
         source_graph = SkillGraph.from_dict(current.graph_payload)
 
     rebuilt = plan_service.build_plan(graph=source_graph, goal=goal, knowledge=knowledge)
-    rebuilt = _enrich_plan_statuses(rebuilt, knowledge)
+    status_scope: list[str] | None = None
+    if current.graph_payload is not None:
+        status_scope = list(source_graph.skills.keys())
+    rebuilt = _enrich_plan_statuses(rebuilt, knowledge, status_scope)
     if current.graph_payload is not None:
         rebuilt = rebuilt.with_graph_payload(current.graph_payload)
     rebuilt = rebuilt.with_id(plan_id)

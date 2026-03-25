@@ -18,7 +18,7 @@ class LearningPlan:
     is_active: bool = True
 
     def __post_init__(self):
-        statuses = {}
+        statuses = dict(self.skill_statuses)
         for skill_id in self.ordered_skill_ids:
             statuses[skill_id] = self.skill_statuses.get(skill_id, KnowledgeStatus.UNKNOWN)
         object.__setattr__(self, "skill_statuses", statuses)
@@ -32,7 +32,11 @@ class LearningPlan:
         return self.skill_statuses[skill_id]
 
     def with_skill_status(self, skill_id: str, status: KnowledgeStatus) -> "LearningPlan":
-        if skill_id not in self.skill_statuses:
+        graph_skill_ids = set()
+        if self.graph_payload is not None:
+            graph_skill_ids = {item["id"] for item in self.graph_payload.get("skills", [])}
+
+        if skill_id not in self.skill_statuses and skill_id not in graph_skill_ids:
             raise ValueError(f"Skill is not in plan: {skill_id}")
 
         updated = dict(self.skill_statuses)

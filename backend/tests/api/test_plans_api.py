@@ -98,6 +98,90 @@ def test_import_plan_and_get_plan_graph():
     assert skill_ids == {"x", "y", "z"}
 
 
+def test_imported_plan_allows_status_update_for_graph_nodes_not_in_ordered_list():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    payload = {
+        "skills": [
+            {"id": "a", "title": "A", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "B", "description": "", "difficulty": 2, "prerequisites": ["a"]},
+            {"id": "goal", "title": "Goal", "description": "", "difficulty": 3, "prerequisites": ["b"]},
+        ],
+        "target_skill_ids": ["goal"],
+        "mode": "surface",
+    }
+
+    first = client.post("/api/v1/plans/import", headers=headers, json=payload)
+    assert first.status_code == 200
+    first_plan_id = first.json()["id"]
+
+    mark_mastered = client.patch(
+        f"/api/v1/plans/{first_plan_id}/skills/a/status",
+        headers=headers,
+        json={"status": "mastered"},
+    )
+    assert mark_mastered.status_code == 200
+
+    second = client.post("/api/v1/plans/import", headers=headers, json=payload)
+    assert second.status_code == 200
+    second_plan_id = second.json()["id"]
+    assert "a" not in second.json()["ordered_skill_ids"]
+
+    update_again = client.patch(
+        f"/api/v1/plans/{second_plan_id}/skills/a/status",
+        headers=headers,
+        json={"status": "learning"},
+    )
+    assert update_again.status_code == 200
+    assert update_again.json()["skill_statuses"]["a"] == "learning"
+
+
+def test_imported_plan_keeps_mastered_status_for_nodes_outside_ordered_list():
+    raw_graph = {
+        "skills": [
+            {"id": "seed", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    payload = {
+        "skills": [
+            {"id": "a", "title": "A", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "B", "description": "", "difficulty": 2, "prerequisites": ["a"]},
+            {"id": "goal", "title": "Goal", "description": "", "difficulty": 3, "prerequisites": ["b"]},
+        ],
+        "target_skill_ids": ["goal"],
+        "mode": "surface",
+    }
+
+    first = client.post("/api/v1/plans/import", headers=headers, json=payload)
+    assert first.status_code == 200
+    first_plan_id = first.json()["id"]
+
+    marked = client.patch(
+        f"/api/v1/plans/{first_plan_id}/skills/a/status",
+        headers=headers,
+        json={"status": "mastered"},
+    )
+    assert marked.status_code == 200
+    assert marked.json()["skill_statuses"]["a"] == "mastered"
+
+    second = client.post("/api/v1/plans/import", headers=headers, json=payload)
+    assert second.status_code == 200
+    body = second.json()
+    assert "a" not in body["ordered_skill_ids"]
+    assert body["skill_statuses"]["a"] == "mastered"
+
+
 def test_get_plan_by_id():
     raw_graph = {
         "skills": [
