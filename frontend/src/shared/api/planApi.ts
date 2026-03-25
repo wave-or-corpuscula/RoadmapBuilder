@@ -1,5 +1,13 @@
 import { apiRequest } from './client'
-import type { ImportPlanPayload, KnowledgeStatus, LearningMode, Plan, PlanGraph, Progress } from '../types/api'
+import type {
+  ImportPlanPayload,
+  ImportTemplate,
+  KnowledgeStatus,
+  LearningMode,
+  Plan,
+  PlanGraph,
+  Progress,
+} from '../types/api'
 
 export function createPlan(
   token: string,
@@ -24,6 +32,10 @@ export function importPlan(token: string, payload: ImportPlanPayload): Promise<P
     token,
     body: payload,
   })
+}
+
+export function getImportTemplate(): Promise<ImportTemplate> {
+  return apiRequest<ImportTemplate>('/plans/import-template')
 }
 
 export function getPlanGraph(token: string, planId: string): Promise<PlanGraph> {

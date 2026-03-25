@@ -50,3 +50,10 @@ export type ImportPlanPayload = {
   mode: LearningMode
   mastered_skill_ids?: string[]
 }
+
+export type ImportTemplate = {
+  skills: PlanGraphSkill[]
+  target_skill_ids: string[]
+  mode: LearningMode
+  mastered_skill_ids: string[]
+}

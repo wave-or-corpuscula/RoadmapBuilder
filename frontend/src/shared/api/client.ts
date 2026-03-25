@@ -16,6 +16,11 @@ export class ApiError extends Error {
   }
 }
 
+type ValidationDetailItem = {
+  loc?: Array<string | number>
+  msg?: string
+}
+
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -35,9 +40,17 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
     const text = await response.text()
     let message = text
     try {
-      const parsed = JSON.parse(text) as { detail?: string }
-      if (parsed.detail) {
-        message = parsed.detail
+      const parsed = JSON.parse(text) as { detail?: string | ValidationDetailItem[] }
+      const detail = parsed.detail
+      if (typeof detail === 'string') {
+        message = detail
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((item) => {
+            const where = item.loc ? item.loc.join('.') : 'request'
+            return `${where}: ${item.msg ?? 'invalid value'}`
+          })
+          .join('; ')
       }
     } catch {
       // keep raw text
