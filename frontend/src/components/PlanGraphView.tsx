@@ -9,7 +9,6 @@ type Props = {
 type NodePosition = {
   x: number
   y: number
-  depth: number
 }
 
 const NODE_WIDTH = 220
@@ -65,7 +64,6 @@ function computePositions(graph: PlanGraph): Record<string, NodePosition> {
       positions[skillId] = {
         x: PADDING_X + depth * (NODE_WIDTH + H_GAP),
         y: PADDING_Y + index * (NODE_HEIGHT + V_GAP),
-        depth,
       }
     })
   }
@@ -133,10 +131,9 @@ export default function PlanGraphView({ graph, plan, onStatusChange }: Props) {
               }}
             >
               <header>
-                <h3>{skill.id}</h3>
-                <span>d{position.depth}</span>
+                <h3>{skill.title}</h3>
               </header>
-              <p>{skill.title}</p>
+              <p>{skill.description}</p>
               <select value={status} onChange={(event) => onStatusChange(skill.id, event.target.value as KnowledgeStatus)}>
                 <option value="unknown">unknown</option>
                 <option value="learning">learning</option>

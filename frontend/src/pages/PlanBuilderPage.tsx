@@ -126,6 +126,89 @@ export default function PlanBuilderPage({ plan, graph, onBack, onImportPlan, onU
     }
   }
 
+  const importForm = (
+    <section className="card">
+      <div className="form prompt-builder">
+        <label>
+          Тема для генерации плана
+          <input
+            type="text"
+            value={topic}
+            onChange={(event) => setTopic(event.target.value)}
+            placeholder="Например: Backend на Python для junior+"
+          />
+        </label>
+        <button type="button" onClick={handleGeneratePrompt} disabled={isPromptLoading}>
+          {isPromptLoading ? 'Генерируем...' : 'Получить запрос'}
+        </button>
+        {promptError ? <p className="error-text">{promptError}</p> : null}
+        <label>
+          Запрос для ИИ
+          <textarea rows={12} value={generatedPrompt} readOnly spellCheck={false} />
+        </label>
+        <div className="actions">
+          <button type="button" className="secondary" onClick={handleCopyPrompt} disabled={!generatedPrompt.trim()}>
+            Скопировать запрос
+          </button>
+          {copyMessage ? <p className="status-text">{copyMessage}</p> : null}
+        </div>
+      </div>
+
+      <form className="form" onSubmit={handleSubmit}>
+        <label>
+          Plan JSON
+          <textarea
+            rows={12}
+            value={rawJson}
+            onChange={(event) => setRawJson(event.target.value)}
+            spellCheck={false}
+          />
+        </label>
+        <label>
+          Or pick JSON file
+          <input
+            type="file"
+            accept=".json,application/json"
+            onChange={async (event) => {
+              const file = event.target.files?.[0]
+              if (!file) {
+                return
+              }
+              const text = await file.text()
+              setRawJson(text)
+            }}
+          />
+        </label>
+        {error ? <p className="error-text">{error}</p> : null}
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Importing...' : 'Import plan'}
+        </button>
+      </form>
+    </section>
+  )
+
+  if (plan && graph) {
+    return (
+      <main className="plan-workspace">
+        <header className="workspace-topbar">
+          <div>
+            <h1>Learning Plan</h1>
+            <p>Основной режим работы с планом.</p>
+          </div>
+          <button className="secondary" onClick={onBack}>
+            Back to dashboard
+          </button>
+        </header>
+        <div className="workspace-body">
+          <aside className="workspace-sidebar">{importForm}</aside>
+          <section className="workspace-main">
+            <PlanGraphView graph={graph} plan={plan} onStatusChange={handleStatusChange} />
+          </section>
+        </div>
+      </main>
+    )
+  }
+
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -137,73 +220,7 @@ export default function PlanBuilderPage({ plan, graph, onBack, onImportPlan, onU
           Back to dashboard
         </button>
       </header>
-
-      <section className="card">
-        <div className="form prompt-builder">
-          <label>
-            Тема для генерации плана
-            <input
-              type="text"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder="Например: Backend на Python для junior+"
-            />
-          </label>
-          <button type="button" onClick={handleGeneratePrompt} disabled={isPromptLoading}>
-            {isPromptLoading ? 'Генерируем...' : 'Получить запрос'}
-          </button>
-          {promptError ? <p className="error-text">{promptError}</p> : null}
-          <label>
-            Запрос для ИИ
-            <textarea rows={12} value={generatedPrompt} readOnly spellCheck={false} />
-          </label>
-          <div className="actions">
-            <button type="button" className="secondary" onClick={handleCopyPrompt} disabled={!generatedPrompt.trim()}>
-              Скопировать запрос
-            </button>
-            {copyMessage ? <p className="status-text">{copyMessage}</p> : null}
-          </div>
-        </div>
-
-        <form className="form" onSubmit={handleSubmit}>
-          <label>
-            Plan JSON
-            <textarea
-              rows={12}
-              value={rawJson}
-              onChange={(event) => setRawJson(event.target.value)}
-              spellCheck={false}
-            />
-          </label>
-          <label>
-            Or pick JSON file
-            <input
-              type="file"
-              accept=".json,application/json"
-              onChange={async (event) => {
-                const file = event.target.files?.[0]
-                if (!file) {
-                  return
-                }
-                const text = await file.text()
-                setRawJson(text)
-              }}
-            />
-          </label>
-          {error ? <p className="error-text">{error}</p> : null}
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Importing...' : 'Import plan'}
-          </button>
-        </form>
-      </section>
-
-      {plan && graph ? (
-        <section className="card">
-          <h2>Imported graph</h2>
-          <p>Plan ID: {plan.id}</p>
-          <PlanGraphView graph={graph} plan={plan} onStatusChange={handleStatusChange} />
-        </section>
-      ) : null}
+      {importForm}
     </main>
   )
 }
