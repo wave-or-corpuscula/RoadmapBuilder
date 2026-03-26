@@ -150,6 +150,12 @@ button:disabled {
   color: #9a1f1f;
 }
 
+.status-text {
+  margin: 0;
+  color: #2b4369;
+  align-self: center;
+}
+
 .graph-scroll {
   overflow: auto;
   border: 1px solid #dce4f2;

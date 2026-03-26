@@ -19,6 +19,7 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [isPromptLoading, setIsPromptLoading] = useState(false)
   const [promptError, setPromptError] = useState<string | null>(null)
+  const [copyMessage, setCopyMessage] = useState<string | null>(null)
   const [createdPlan, setCreatedPlan] = useState<Plan | null>(null)
   const [graph, setGraph] = useState<PlanGraph | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -51,11 +52,13 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
     if (!normalizedTopic) {
       setPromptError('Введите тему для плана.')
       setGeneratedPrompt('')
+      setCopyMessage(null)
       return
     }
 
     setIsPromptLoading(true)
     setPromptError(null)
+    setCopyMessage(null)
     try {
       const response = await getImportPrompt(normalizedTopic)
       setGeneratedPrompt(response.prompt)
@@ -65,6 +68,20 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
       setGeneratedPrompt('')
     } finally {
       setIsPromptLoading(false)
+    }
+  }
+
+  async function handleCopyPrompt() {
+    if (!generatedPrompt.trim()) {
+      setCopyMessage('Сначала сгенерируйте запрос.')
+      return
+    }
+
+    try {
+      await navigator.clipboard.writeText(generatedPrompt)
+      setCopyMessage('Запрос скопирован.')
+    } catch {
+      setCopyMessage('Не удалось скопировать запрос.')
     }
   }
 
@@ -146,6 +163,12 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
             Запрос для ИИ
             <textarea rows={12} value={generatedPrompt} readOnly spellCheck={false} />
           </label>
+          <div className="actions">
+            <button type="button" className="secondary" onClick={handleCopyPrompt} disabled={!generatedPrompt.trim()}>
+              Скопировать запрос
+            </button>
+            {copyMessage ? <p className="status-text">{copyMessage}</p> : null}
+          </div>
         </div>
 
         <form className="form" onSubmit={handleSubmit}>
