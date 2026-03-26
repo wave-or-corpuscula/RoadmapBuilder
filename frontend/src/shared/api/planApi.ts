@@ -1,6 +1,7 @@
 import { apiRequest } from './client'
 import type {
   ImportPlanPayload,
+  ImportPrompt,
   ImportTemplate,
   KnowledgeStatus,
   LearningMode,
@@ -36,6 +37,13 @@ export function importPlan(token: string, payload: ImportPlanPayload): Promise<P
 
 export function getImportTemplate(): Promise<ImportTemplate> {
   return apiRequest<ImportTemplate>('/plans/import-template')
+}
+
+export function getImportPrompt(topic: string): Promise<ImportPrompt> {
+  return apiRequest<ImportPrompt>('/plans/import-prompt', {
+    method: 'POST',
+    body: { topic },
+  })
 }
 
 export function getPlanGraph(token: string, planId: string): Promise<PlanGraph> {

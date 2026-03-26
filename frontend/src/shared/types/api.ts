@@ -45,6 +45,7 @@ export type Progress = {
 }
 
 export type ImportPlanPayload = {
+  schema_version?: string
   skills: PlanGraphSkill[]
   target_skill_ids: string[]
   mode: LearningMode
@@ -52,8 +53,15 @@ export type ImportPlanPayload = {
 }
 
 export type ImportTemplate = {
+  schema_version: string
   skills: PlanGraphSkill[]
   target_skill_ids: string[]
   mode: LearningMode
   mastered_skill_ids: string[]
+}
+
+export type ImportPrompt = {
+  schema_version: string
+  topic: string
+  prompt: string
 }
