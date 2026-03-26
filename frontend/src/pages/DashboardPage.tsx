@@ -1,9 +1,11 @@
-import type { Progress, User } from '../shared/types/api'
+import type { Plan, Progress, User } from '../shared/types/api'
 
 type Props = {
   user: User
   progress: Progress | null
+  recentPlans: Plan[]
   onOpenImport: () => void
+  onOpenPlan: (planId: string) => Promise<void>
   onSignOut: () => void
   onRefreshProgress: () => Promise<void>
 }
@@ -11,7 +13,9 @@ type Props = {
 export default function DashboardPage({
   user,
   progress,
+  recentPlans,
   onOpenImport,
+  onOpenPlan,
   onSignOut,
   onRefreshProgress,
 }: Props) {
@@ -39,6 +43,24 @@ export default function DashboardPage({
           </button>
         </div>
       </header>
+
+      <section className="card">
+        <h2>Recent plans</h2>
+        {recentPlans.length === 0 ? (
+          <p>No plans yet.</p>
+        ) : (
+          <ul className="plain-list">
+            {recentPlans.map((plan) => (
+              <li key={plan.id}>
+                <span>{plan.goal.target_skill_ids.join(', ')}</span>
+                <button className="secondary" onClick={() => void onOpenPlan(plan.id)}>
+                  Open
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section className="card">
         <h2>Progress</h2>

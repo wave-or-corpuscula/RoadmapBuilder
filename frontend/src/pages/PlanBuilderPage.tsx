@@ -6,12 +6,14 @@ import { getImportPrompt, getImportTemplate } from '../shared/api/planApi'
 import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
 
 type Props = {
+  plan: Plan | null
+  graph: PlanGraph | null
   onBack: () => void
   onImportPlan: (payload: ImportPlanPayload) => Promise<{ plan: Plan; graph: PlanGraph }>
   onUpdatePlanSkillStatus: (planId: string, skillId: string, status: KnowledgeStatus) => Promise<Plan>
 }
 
-export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkillStatus }: Props) {
+export default function PlanBuilderPage({ plan, graph, onBack, onImportPlan, onUpdatePlanSkillStatus }: Props) {
   const [rawJson, setRawJson] = useState(
     '{\n  "schema_version": "1.0",\n  "skills": [],\n  "target_skill_ids": [],\n  "mode": "balanced"\n}',
   )
@@ -20,8 +22,6 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
   const [isPromptLoading, setIsPromptLoading] = useState(false)
   const [promptError, setPromptError] = useState<string | null>(null)
   const [copyMessage, setCopyMessage] = useState<string | null>(null)
-  const [createdPlan, setCreatedPlan] = useState<Plan | null>(null)
-  const [graph, setGraph] = useState<PlanGraph | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -88,8 +88,6 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault()
     setError(null)
-    setCreatedPlan(null)
-    setGraph(null)
 
     let payload: ImportPlanPayload
     try {
@@ -107,10 +105,7 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
 
     setIsLoading(true)
     try {
-      const result = await onImportPlan(payload)
-      const plan = result.plan
-      setCreatedPlan(plan)
-      setGraph(result.graph)
+      await onImportPlan(payload)
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'Failed to import plan'
       setError(message)
@@ -120,12 +115,11 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
   }
 
   async function handleStatusChange(skillId: string, status: KnowledgeStatus) {
-    if (!createdPlan) {
+    if (!plan) {
       return
     }
     try {
-      const updatedPlan = await onUpdatePlanSkillStatus(createdPlan.id, skillId, status)
-      setCreatedPlan(updatedPlan)
+      await onUpdatePlanSkillStatus(plan.id, skillId, status)
     } catch (submitError) {
       const message = submitError instanceof Error ? submitError.message : 'Failed to update status'
       setError(message)
@@ -203,11 +197,11 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
         </form>
       </section>
 
-      {createdPlan && graph ? (
+      {plan && graph ? (
         <section className="card">
           <h2>Imported graph</h2>
-          <p>Plan ID: {createdPlan.id}</p>
-          <PlanGraphView graph={graph} plan={createdPlan} onStatusChange={handleStatusChange} />
+          <p>Plan ID: {plan.id}</p>
+          <PlanGraphView graph={graph} plan={plan} onStatusChange={handleStatusChange} />
         </section>
       ) : null}
     </main>

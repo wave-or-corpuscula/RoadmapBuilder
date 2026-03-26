@@ -5,12 +5,13 @@ import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import PlanBuilderPage from './pages/PlanBuilderPage'
 import { getMe, login, refresh, register } from './shared/api/authApi'
-import { getPlanGraph, getProgress, importPlan, updatePlanSkillStatus } from './shared/api/planApi'
+import { getPlan, getPlanGraph, getProgress, importPlan, listPlans, updatePlanSkillStatus } from './shared/api/planApi'
 import { ApiError } from './shared/api/client'
 import { clearAuthState, getAuthState, setAuthState } from './store/authStore'
 import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph, Progress, User } from './shared/types/api'
 
 type AppPath = '/dashboard' | '/plans/new'
+const LAST_PLAN_ID_KEY = 'arb:last_plan_id'
 
 function getCurrentPath(): AppPath {
   const path = window.location.pathname
@@ -26,6 +27,9 @@ function App() {
   const [refreshToken, setRefreshToken] = useState<string | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [progress, setProgress] = useState<Progress | null>(null)
+  const [recentPlans, setRecentPlans] = useState<Plan[]>([])
+  const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
+  const [currentGraph, setCurrentGraph] = useState<PlanGraph | null>(null)
   const isAuthenticated = useMemo(() => Boolean(accessToken && user), [accessToken, user])
 
   function navigate(nextPath: AppPath) {
@@ -38,6 +42,30 @@ function App() {
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  function saveLastPlanId(planId: string) {
+    localStorage.setItem(LAST_PLAN_ID_KEY, planId)
+  }
+
+  function getLastPlanId(): string | null {
+    return localStorage.getItem(LAST_PLAN_ID_KEY)
+  }
+
+  function clearLastPlanId() {
+    localStorage.removeItem(LAST_PLAN_ID_KEY)
+  }
+
+  async function refreshRecentPlans(token: string) {
+    const plans = await listPlans(token)
+    setRecentPlans(plans)
+  }
+
+  async function openExistingPlan(token: string, planId: string) {
+    const [plan, graph] = await Promise.all([getPlan(token, planId), getPlanGraph(token, planId)])
+    setCurrentPlan(plan)
+    setCurrentGraph(graph)
+    saveLastPlanId(plan.id)
+  }
 
   async function bootstrap() {
     const persisted = getAuthState()
@@ -52,6 +80,19 @@ function App() {
       setUser(me)
       const currentProgress = await getProgress(persisted.accessToken)
       setProgress(currentProgress)
+      try {
+        await refreshRecentPlans(persisted.accessToken)
+      } catch {
+        setRecentPlans([])
+      }
+      const lastPlanId = getLastPlanId()
+      if (lastPlanId) {
+        try {
+          await openExistingPlan(persisted.accessToken, lastPlanId)
+        } catch {
+          clearLastPlanId()
+        }
+      }
       setAuthState({ accessToken: persisted.accessToken, refreshToken: persisted.refreshToken, user: me })
       return
     } catch (error) {
@@ -69,6 +110,19 @@ function App() {
       setUser(me)
       const currentProgress = await getProgress(tokens.access_token)
       setProgress(currentProgress)
+      try {
+        await refreshRecentPlans(tokens.access_token)
+      } catch {
+        setRecentPlans([])
+      }
+      const lastPlanId = getLastPlanId()
+      if (lastPlanId) {
+        try {
+          await openExistingPlan(tokens.access_token, lastPlanId)
+        } catch {
+          clearLastPlanId()
+        }
+      }
       setAuthState({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token, user: me })
     } catch {
       clearAuthState()
@@ -87,6 +141,11 @@ function App() {
     setUser(me)
     const currentProgress = await getProgress(tokens.access_token)
     setProgress(currentProgress)
+    try {
+      await refreshRecentPlans(tokens.access_token)
+    } catch {
+      setRecentPlans([])
+    }
     setAuthState({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token, user: me })
     navigate('/dashboard')
   }
@@ -99,6 +158,11 @@ function App() {
     setUser(me)
     const currentProgress = await getProgress(tokens.access_token)
     setProgress(currentProgress)
+    try {
+      await refreshRecentPlans(tokens.access_token)
+    } catch {
+      setRecentPlans([])
+    }
     setAuthState({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token, user: me })
     navigate('/dashboard')
   }
@@ -119,6 +183,14 @@ function App() {
     const graph = await getPlanGraph(accessToken, created.id)
     const currentProgress = await getProgress(accessToken)
     setProgress(currentProgress)
+    setCurrentPlan(created)
+    setCurrentGraph(graph)
+    saveLastPlanId(created.id)
+    try {
+      await refreshRecentPlans(accessToken)
+    } catch {
+      setRecentPlans([])
+    }
     return { plan: created, graph }
   }
 
@@ -129,7 +201,18 @@ function App() {
     const updatedPlan = await updatePlanSkillStatus(accessToken, planId, skillId, status)
     const currentProgress = await getProgress(accessToken)
     setProgress(currentProgress)
+    if (currentPlan && currentPlan.id === updatedPlan.id) {
+      setCurrentPlan(updatedPlan)
+    }
     return updatedPlan
+  }
+
+  async function handleOpenPlan(planId: string) {
+    if (!accessToken) {
+      throw new Error('Not authenticated')
+    }
+    await openExistingPlan(accessToken, planId)
+    navigate('/plans/new')
   }
 
   function handleSignOut() {
@@ -138,6 +221,10 @@ function App() {
     setRefreshToken(null)
     setUser(null)
     setProgress(null)
+    setRecentPlans([])
+    setCurrentPlan(null)
+    setCurrentGraph(null)
+    clearLastPlanId()
     navigate('/dashboard')
   }
 
@@ -156,6 +243,8 @@ function App() {
   if (path === '/plans/new') {
     return (
       <PlanBuilderPage
+        plan={currentPlan}
+        graph={currentGraph}
         onBack={() => navigate('/dashboard')}
         onImportPlan={handleImportPlan}
         onUpdatePlanSkillStatus={handleUpdatePlanSkillStatus}
@@ -167,7 +256,9 @@ function App() {
     <DashboardPage
       user={user}
       progress={progress}
+      recentPlans={recentPlans}
       onOpenImport={() => navigate('/plans/new')}
+      onOpenPlan={handleOpenPlan}
       onSignOut={handleSignOut}
       onRefreshProgress={refreshProgress}
     />
