@@ -50,6 +50,14 @@ export function getPlanGraph(token: string, planId: string): Promise<PlanGraph> 
   return apiRequest<PlanGraph>(`/plans/${planId}/graph`, { token })
 }
 
+export function getPlan(token: string, planId: string): Promise<Plan> {
+  return apiRequest<Plan>(`/plans/${planId}`, { token })
+}
+
+export function listPlans(token: string): Promise<Plan[]> {
+  return apiRequest<Plan[]>('/plans', { token })
+}
+
 export function updatePlanSkillStatus(token: string, planId: string, skillId: string, status: KnowledgeStatus): Promise<Plan> {
   return apiRequest<Plan>(`/plans/${planId}/skills/${skillId}/status`, {
     method: 'PATCH',
