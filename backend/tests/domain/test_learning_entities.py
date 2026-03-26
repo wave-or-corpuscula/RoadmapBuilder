@@ -43,3 +43,17 @@ def test_learning_plan_next_unmastered():
     )
 
     assert plan.next_unmastered(knowledge) == "async"
+
+
+def test_learning_plan_with_skill_note():
+    goal = LearningGoal(target_skill_ids=["async"])
+    plan = LearningPlan(
+        id=None,
+        user_id="u1",
+        goal=goal,
+        ordered_skill_ids=["python", "async"],
+    )
+
+    updated = plan.with_skill_note("python", "Use flashcards")
+
+    assert updated.skill_notes["python"] == "Use flashcards"
