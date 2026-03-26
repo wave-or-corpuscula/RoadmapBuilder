@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { SubmitEventHandler } from 'react'
 
 import PlanGraphView from '../components/PlanGraphView'
-import { getImportTemplate } from '../shared/api/planApi'
+import { getImportPrompt, getImportTemplate } from '../shared/api/planApi'
 import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
 
 type Props = {
@@ -12,7 +12,13 @@ type Props = {
 }
 
 export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkillStatus }: Props) {
-  const [rawJson, setRawJson] = useState('{\n  "skills": [],\n  "target_skill_ids": [],\n  "mode": "balanced"\n}')
+  const [rawJson, setRawJson] = useState(
+    '{\n  "schema_version": "1.0",\n  "skills": [],\n  "target_skill_ids": [],\n  "mode": "balanced"\n}',
+  )
+  const [topic, setTopic] = useState('')
+  const [generatedPrompt, setGeneratedPrompt] = useState('')
+  const [isPromptLoading, setIsPromptLoading] = useState(false)
+  const [promptError, setPromptError] = useState<string | null>(null)
   const [createdPlan, setCreatedPlan] = useState<Plan | null>(null)
   const [graph, setGraph] = useState<PlanGraph | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -38,6 +44,28 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
       return 'target_skill_ids must be a non-empty array.'
     }
     return null
+  }
+
+  async function handleGeneratePrompt() {
+    const normalizedTopic = topic.trim()
+    if (!normalizedTopic) {
+      setPromptError('Введите тему для плана.')
+      setGeneratedPrompt('')
+      return
+    }
+
+    setIsPromptLoading(true)
+    setPromptError(null)
+    try {
+      const response = await getImportPrompt(normalizedTopic)
+      setGeneratedPrompt(response.prompt)
+    } catch (submitError) {
+      const message = submitError instanceof Error ? submitError.message : 'Failed to build prompt'
+      setPromptError(message)
+      setGeneratedPrompt('')
+    } finally {
+      setIsPromptLoading(false)
+    }
   }
 
   const handleSubmit: SubmitEventHandler<HTMLFormElement> = async (event) => {
@@ -100,6 +128,26 @@ export default function PlanBuilderPage({ onBack, onImportPlan, onUpdatePlanSkil
       </header>
 
       <section className="card">
+        <div className="form prompt-builder">
+          <label>
+            Тема для генерации плана
+            <input
+              type="text"
+              value={topic}
+              onChange={(event) => setTopic(event.target.value)}
+              placeholder="Например: Backend на Python для junior+"
+            />
+          </label>
+          <button type="button" onClick={handleGeneratePrompt} disabled={isPromptLoading}>
+            {isPromptLoading ? 'Генерируем...' : 'Получить запрос'}
+          </button>
+          {promptError ? <p className="error-text">{promptError}</p> : null}
+          <label>
+            Запрос для ИИ
+            <textarea rows={12} value={generatedPrompt} readOnly spellCheck={false} />
+          </label>
+        </div>
+
         <form className="form" onSubmit={handleSubmit}>
           <label>
             Plan JSON
