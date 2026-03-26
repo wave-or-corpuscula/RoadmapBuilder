@@ -22,6 +22,7 @@ from backend.services.plan_service import PlanService
 
 
 router = APIRouter(prefix="/plans", tags=["plans"])
+IMPORT_SCHEMA_VERSION = "1.0"
 
 
 class CreatePlanRequest(BaseModel):
@@ -64,6 +65,7 @@ class ImportSkillItem(BaseModel):
 
 
 class ImportPlanRequest(BaseModel):
+    schema_version: str | None = None
     skills: list[ImportSkillItem] = Field(..., min_length=1)
     target_skill_ids: list[str] = Field(..., min_length=1)
     mode: LearningMode = LearningMode.BALANCED
@@ -148,6 +150,7 @@ def create_plan(
 @router.get("/import-template", response_model=ImportTemplateResponse)
 def get_import_template() -> ImportTemplateResponse:
     return ImportTemplateResponse(
+        schema_version=IMPORT_SCHEMA_VERSION,
         skills=[
             ImportSkillItem(
                 id="python_basics",
@@ -185,6 +188,15 @@ def import_plan(
     knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
     plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
+    if payload.schema_version is not None and payload.schema_version != IMPORT_SCHEMA_VERSION:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Unsupported schema_version '{payload.schema_version}'. "
+                f"Expected '{IMPORT_SCHEMA_VERSION}'."
+            ),
+        )
+
     graph_payload = {"skills": [item.model_dump() for item in payload.skills]}
 
     try:
