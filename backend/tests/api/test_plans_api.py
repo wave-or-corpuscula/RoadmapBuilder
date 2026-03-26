@@ -249,6 +249,47 @@ def test_get_plan_by_id():
     assert got.json()["id"] == plan_id
 
 
+def test_list_plans_returns_user_plans_only_ordered_desc():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "goal", "title": "", "description": "", "difficulty": 1, "prerequisites": ["a"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+
+    headers1, _ = _auth_context(client, email="u1@example.com")
+    headers2, _ = _auth_context(client, email="u2@example.com")
+
+    first = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface"},
+        headers=headers1,
+    )
+    assert first.status_code == 200
+    second = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface"},
+        headers=headers1,
+    )
+    assert second.status_code == 200
+
+    other = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface"},
+        headers=headers2,
+    )
+    assert other.status_code == 200
+
+    listed = client.get("/api/v1/plans", headers=headers1)
+    assert listed.status_code == 200
+    body = listed.json()
+    assert len(body) == 2
+    assert body[0]["id"] == second.json()["id"]
+    assert body[1]["id"] == first.json()["id"]
+
+
 def test_update_plan_skill_status():
     raw_graph = {
         "skills": [

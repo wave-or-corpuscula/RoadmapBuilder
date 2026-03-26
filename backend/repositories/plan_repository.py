@@ -16,3 +16,6 @@ class InMemoryPlanRepository:
 
     def get(self, plan_id: str) -> LearningPlan | None:
         return self._plans.get(plan_id)
+
+    def list_by_user(self, user_id: str) -> list[LearningPlan]:
+        return [plan for plan in self._plans.values() if plan.user_id == user_id]

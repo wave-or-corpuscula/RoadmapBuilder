@@ -193,6 +193,16 @@ def create_plan(
     return _to_response(plan)
 
 
+@router.get("", response_model=list[PlanResponse])
+def list_plans(
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+) -> list[PlanResponse]:
+    plans = plan_repo.list_by_user(current_user_id)
+    plans.sort(key=lambda item: item.created_at, reverse=True)
+    return [_to_response(plan) for plan in plans]
+
+
 @router.get("/import-template", response_model=ImportTemplateResponse)
 def get_import_template() -> ImportTemplateResponse:
     return ImportTemplateResponse(
