@@ -59,9 +59,28 @@ def test_get_import_template():
     resp = client.get("/api/v1/plans/import-template", headers=headers)
     assert resp.status_code == 200
     body = resp.json()
+    assert body["schema_version"] == "1.0"
     assert "skills" in body
     assert "target_skill_ids" in body
     assert "mode" in body
+
+
+def test_get_import_prompt():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    resp = client.post("/api/v1/plans/import-prompt", headers=headers, json={"topic": "Backend engineering"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["schema_version"] == "1.0"
+    assert body["topic"] == "Backend engineering"
+    assert '"Backend engineering"' in body["prompt"]
 
 
 def test_import_plan_and_get_plan_graph():
@@ -180,6 +199,31 @@ def test_imported_plan_keeps_mastered_status_for_nodes_outside_ordered_list():
     body = second.json()
     assert "a" not in body["ordered_skill_ids"]
     assert body["skill_statuses"]["a"] == "mastered"
+
+
+def test_import_plan_rejects_unsupported_schema_version():
+    raw_graph = {
+        "skills": [
+            {"id": "seed", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    payload = {
+        "schema_version": "9.9",
+        "skills": [
+            {"id": "a", "title": "A", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "goal", "title": "Goal", "description": "", "difficulty": 2, "prerequisites": ["a"]},
+        ],
+        "target_skill_ids": ["goal"],
+        "mode": "surface",
+    }
+
+    imported = client.post("/api/v1/plans/import", headers=headers, json=payload)
+    assert imported.status_code == 400
+    assert "schema_version" in imported.json()["detail"]
 
 
 def test_get_plan_by_id():

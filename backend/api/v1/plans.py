@@ -73,10 +73,21 @@ class ImportPlanRequest(BaseModel):
 
 
 class ImportTemplateResponse(BaseModel):
+    schema_version: str
     skills: list[ImportSkillItem]
     target_skill_ids: list[str]
     mode: LearningMode
     mastered_skill_ids: list[str]
+
+
+class ImportPromptRequest(BaseModel):
+    topic: str = Field(..., min_length=2, max_length=200)
+
+
+class ImportPromptResponse(BaseModel):
+    schema_version: str
+    topic: str
+    prompt: str
 
 
 def _to_response(plan: LearningPlan) -> PlanResponse:
@@ -119,6 +130,41 @@ def _enrich_plan_statuses(
         if status_value != KnowledgeStatus.UNKNOWN:
             enriched = enriched.with_skill_status(skill_id, status_value)
     return enriched
+
+
+def _build_import_prompt(topic: str) -> str:
+    return (
+        "Ты эксперт по обучающим дорожным картам. "
+        "Сгенерируй строго валидный JSON (без markdown, без комментариев, без лишнего текста) "
+        "для темы: "
+        f'"{topic}".\n\n'
+        "Требования к формату JSON:\n"
+        f'1) schema_version должен быть "{IMPORT_SCHEMA_VERSION}".\n'
+        "2) Корневой объект должен содержать ключи:\n"
+        '   - "schema_version": string\n'
+        '   - "skills": array of skill objects\n'
+        '   - "target_skill_ids": array[string]\n'
+        '   - "mode": one of "surface" | "balanced" | "deep"\n'
+        '   - "mastered_skill_ids": array[string]\n'
+        "3) Skill object:\n"
+        '   - "id": string (snake_case, уникальный)\n'
+        '   - "title": string\n'
+        '   - "description": string\n'
+        '   - "difficulty": integer от 1 до 10\n'
+        '   - "prerequisites": array[string] (id навыков-предпосылок)\n'
+        "4) Граф должен быть ацикличным.\n"
+        "5) Все id из prerequisites должны существовать в skills.\n"
+        "6) target_skill_ids должны существовать в skills и соответствовать конечной цели обучения.\n"
+        "7) Сформируй 15-35 навыков, от базовых к продвинутым.\n"
+        "8) Учитывай практическую последовательность изучения.\n"
+        "9) mastered_skill_ids оставь пустым массивом.\n\n"
+        "Проверь JSON перед ответом:\n"
+        "- синтаксис валиден;\n"
+        "- нет дубликатов id;\n"
+        "- нет циклов;\n"
+        "- target_skill_ids не пустой.\n\n"
+        "Ответ: только JSON объект."
+    )
 
 
 @router.post("", response_model=PlanResponse)
@@ -177,6 +223,18 @@ def get_import_template() -> ImportTemplateResponse:
         target_skill_ids=["api_design"],
         mode=LearningMode.BALANCED,
         mastered_skill_ids=[],
+    )
+
+
+@router.post("/import-prompt", response_model=ImportPromptResponse)
+def build_import_prompt(payload: ImportPromptRequest) -> ImportPromptResponse:
+    topic = payload.topic.strip()
+    if not topic:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="topic must not be empty")
+    return ImportPromptResponse(
+        schema_version=IMPORT_SCHEMA_VERSION,
+        topic=topic,
+        prompt=_build_import_prompt(topic),
     )
 
 
