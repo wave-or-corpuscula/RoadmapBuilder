@@ -60,6 +60,7 @@ def test_get_import_template():
     assert resp.status_code == 200
     body = resp.json()
     assert body["schema_version"] == "1.0"
+    assert body["title"]
     assert "skills" in body
     assert "target_skill_ids" in body
     assert "mode" in body
@@ -97,6 +98,7 @@ def test_import_plan_and_get_plan_graph():
         "/api/v1/plans/import",
         headers=headers,
         json={
+            "title": "Backend Core Plan",
             "skills": [
                 {"id": "x", "title": "X", "description": "", "difficulty": 1, "prerequisites": []},
                 {"id": "y", "title": "Y", "description": "", "difficulty": 2, "prerequisites": ["x"]},
@@ -109,6 +111,7 @@ def test_import_plan_and_get_plan_graph():
     )
     assert imported.status_code == 200
     plan_id = imported.json()["id"]
+    assert imported.json()["title"] == "Backend Core Plan"
     assert imported.json()["ordered_skill_ids"] == ["x", "y", "z"]
 
     graph = client.get(f"/api/v1/plans/{plan_id}/graph", headers=headers)
@@ -319,6 +322,33 @@ def test_update_plan_skill_status():
     progress = client.get("/api/v1/progress/me", headers=headers)
     assert progress.status_code == 200
     assert progress.json()["statuses"]["a"] == "mastered"
+
+
+def test_update_plan_skill_note():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "goal", "title": "", "description": "", "difficulty": 1, "prerequisites": ["a"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    created = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface"},
+        headers=headers,
+    )
+    plan_id = created.json()["id"]
+
+    updated = client.patch(
+        f"/api/v1/plans/{plan_id}/skills/a/note",
+        json={"note": "## Focus\n- practice daily"},
+        headers=headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["skill_notes"]["a"] == "## Focus\n- practice daily"
 
 
 def test_rebuild_plan_keeps_id_and_excludes_mastered():

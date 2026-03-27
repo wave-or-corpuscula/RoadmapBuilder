@@ -39,9 +39,11 @@ class GoalResponse(BaseModel):
 class PlanResponse(BaseModel):
     id: str
     user_id: str
+    title: str
     goal: GoalResponse
     ordered_skill_ids: list[str]
     skill_statuses: dict[str, KnowledgeStatus]
+    skill_notes: dict[str, str]
     created_at: datetime
     is_active: bool
 
@@ -56,6 +58,10 @@ class UpdatePlanSkillStatusRequest(BaseModel):
     status: KnowledgeStatus
 
 
+class UpdatePlanSkillNoteRequest(BaseModel):
+    note: str
+
+
 class ImportSkillItem(BaseModel):
     id: str = Field(..., min_length=1)
     title: str = Field(..., min_length=1)
@@ -66,6 +72,7 @@ class ImportSkillItem(BaseModel):
 
 class ImportPlanRequest(BaseModel):
     schema_version: str | None = None
+    title: str | None = None
     skills: list[ImportSkillItem] = Field(..., min_length=1)
     target_skill_ids: list[str] = Field(..., min_length=1)
     mode: LearningMode = LearningMode.BALANCED
@@ -74,6 +81,7 @@ class ImportPlanRequest(BaseModel):
 
 class ImportTemplateResponse(BaseModel):
     schema_version: str
+    title: str
     skills: list[ImportSkillItem]
     target_skill_ids: list[str]
     mode: LearningMode
@@ -94,9 +102,11 @@ def _to_response(plan: LearningPlan) -> PlanResponse:
     return PlanResponse(
         id=plan.id or "",
         user_id=plan.user_id,
+        title=plan.title,
         goal=GoalResponse(target_skill_ids=plan.goal.target_skill_ids, mode=plan.goal.mode),
         ordered_skill_ids=plan.ordered_skill_ids,
         skill_statuses=plan.skill_statuses,
+        skill_notes=plan.skill_notes,
         created_at=plan.created_at,
         is_active=plan.is_active,
     )
@@ -142,6 +152,7 @@ def _build_import_prompt(topic: str) -> str:
         f'1) schema_version должен быть "{IMPORT_SCHEMA_VERSION}".\n'
         "2) Корневой объект должен содержать ключи:\n"
         '   - "schema_version": string\n'
+        f'   - "title": string (название плана, строго: "{topic}")\n'
         '   - "skills": array of skill objects\n'
         '   - "target_skill_ids": array[string]\n'
         '   - "mode": one of "surface" | "balanced" | "deep"\n'
@@ -188,6 +199,8 @@ def create_plan(
     knowledge = UserKnowledge(user_id=current_user_id, statuses=statuses)
 
     plan: LearningPlan = plan_service.build_plan(graph=graph, goal=goal, knowledge=knowledge)
+    generated_title = ", ".join(payload.target_skill_ids[:2]) or "Learning Plan"
+    plan = plan.with_title(f"Plan: {generated_title}")
     plan = _enrich_plan_statuses(plan, knowledge)
     plan = plan_repo.save(plan)
     return _to_response(plan)
@@ -207,6 +220,7 @@ def list_plans(
 def get_import_template() -> ImportTemplateResponse:
     return ImportTemplateResponse(
         schema_version=IMPORT_SCHEMA_VERSION,
+        title="Python API Roadmap",
         skills=[
             ImportSkillItem(
                 id="python_basics",
@@ -282,6 +296,11 @@ def import_plan(
     knowledge = UserKnowledge(user_id=current_user_id, statuses=statuses)
 
     plan = plan_service.build_plan(graph=imported_graph, goal=goal, knowledge=knowledge)
+    if payload.title is not None:
+        plan = plan.with_title(payload.title)
+    else:
+        generated_title = ", ".join(payload.target_skill_ids[:2]) or "Learning Plan"
+        plan = plan.with_title(f"Plan: {generated_title}")
     plan = plan.with_graph_payload(graph_payload)
     imported_skill_ids = [skill.id for skill in payload.skills]
     plan = _enrich_plan_statuses(plan, knowledge, imported_skill_ids)
@@ -350,6 +369,7 @@ def rebuild_plan(
         source_graph = SkillGraph.from_dict(current.graph_payload)
 
     rebuilt = plan_service.build_plan(graph=source_graph, goal=goal, knowledge=knowledge)
+    rebuilt = rebuilt.with_title(current.title)
     status_scope: list[str] | None = None
     if current.graph_payload is not None:
         status_scope = list(source_graph.skills.keys())
@@ -382,6 +402,27 @@ def update_plan_skill_status(
     user_knowledge = knowledge_repo.get_or_create(plan.user_id)
     user_knowledge.set_status(skill_id, payload.status)
     knowledge_repo.save(user_knowledge)
+
+    updated = plan_repo.save(updated)
+    return _to_response(updated)
+
+
+@router.patch("/{plan_id}/skills/{skill_id}/note", response_model=PlanResponse)
+def update_plan_skill_note(
+    plan_id: str,
+    skill_id: str,
+    payload: UpdatePlanSkillNoteRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+) -> PlanResponse:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    try:
+        updated = plan.with_skill_note(skill_id=skill_id, note=payload.note)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     updated = plan_repo.save(updated)
     return _to_response(updated)
