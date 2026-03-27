@@ -3,6 +3,8 @@ import type { KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
 type Props = {
   graph: PlanGraph
   plan: Plan
+  selectedSkillId: string | null
+  onSelectSkill: (skillId: string) => void
   onStatusChange: (skillId: string, status: KnowledgeStatus) => void
 }
 
@@ -70,17 +72,18 @@ function computePositions(graph: PlanGraph): Record<string, NodePosition> {
   return positions
 }
 
-function statusClass(status: KnowledgeStatus): string {
+function statusClass(status: KnowledgeStatus, selected: boolean): string {
+  const selectedClass = selected ? ' selected' : ''
   if (status === 'mastered') {
-    return 'graph-node mastered'
+    return `graph-node mastered${selectedClass}`
   }
   if (status === 'learning') {
-    return 'graph-node learning'
+    return `graph-node learning${selectedClass}`
   }
-  return 'graph-node unknown'
+  return `graph-node unknown${selectedClass}`
 }
 
-export default function PlanGraphView({ graph, plan, onStatusChange }: Props) {
+export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSkill, onStatusChange }: Props) {
   const positions = computePositions(graph)
   const maxX = Math.max(...Object.values(positions).map((value) => value.x), 0) + NODE_WIDTH + PADDING_X
   const maxY = Math.max(...Object.values(positions).map((value) => value.y), 0) + NODE_HEIGHT + PADDING_Y
@@ -119,10 +122,12 @@ export default function PlanGraphView({ graph, plan, onStatusChange }: Props) {
             return null
           }
           const status = plan.skill_statuses[skill.id] ?? 'unknown'
+          const isSelected = skill.id == selectedSkillId
           return (
             <article
               key={skill.id}
-              className={statusClass(status)}
+              className={statusClass(status, isSelected)}
+              onClick={() => onSelectSkill(skill.id)}
               style={{
                 left: `${position.x}px`,
                 top: `${position.y}px`,

@@ -52,7 +52,7 @@ export default function DashboardPage({
           <ul className="plain-list">
             {recentPlans.map((plan) => (
               <li key={plan.id}>
-                <span>{plan.goal.target_skill_ids.join(', ')}</span>
+                <span>{plan.title}</span>
                 <button className="secondary" onClick={() => void onOpenPlan(plan.id)}>
                   Open
                 </button>

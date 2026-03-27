@@ -66,6 +66,14 @@ export function updatePlanSkillStatus(token: string, planId: string, skillId: st
   })
 }
 
+export function updatePlanSkillNote(token: string, planId: string, skillId: string, note: string): Promise<Plan> {
+  return apiRequest<Plan>(`/plans/${planId}/skills/${skillId}/note`, {
+    method: 'PATCH',
+    token,
+    body: { note },
+  })
+}
+
 export function getProgress(token: string): Promise<Progress> {
   return apiRequest<Progress>('/progress/me', { token })
 }

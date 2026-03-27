@@ -86,6 +86,27 @@
   padding: 8px;
 }
 
+.markdown-preview {
+  margin-top: 10px;
+  border: 1px solid #dce4f2;
+  border-radius: 10px;
+  background: #fafcff;
+  padding: 10px;
+  color: #33425f;
+  font-size: 0.92rem;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  margin: 8px 0;
+}
+
+.markdown-preview ul {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
 .topbar {
   display: flex;
   align-items: start;
@@ -229,6 +250,11 @@ button:disabled {
   background: #fff;
   padding: 10px;
   box-shadow: 0 6px 14px rgba(17, 35, 68, 0.08);
+  cursor: pointer;
+}
+
+.graph-node.selected {
+  box-shadow: 0 0 0 2px #3a6bb2, 0 8px 16px rgba(17, 35, 68, 0.12);
 }
 
 .graph-node.unknown {
@@ -254,11 +280,6 @@ button:disabled {
 .graph-node h3 {
   margin: 0;
   font-size: 0.95rem;
-}
-
-.graph-node header span {
-  color: #5f7090;
-  font-size: 0.82rem;
 }
 
 .graph-node p {

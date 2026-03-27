@@ -17,12 +17,14 @@ export type User = {
 export type Plan = {
   id: string
   user_id: string
+  title: string
   goal: {
     target_skill_ids: string[]
     mode: LearningMode
   }
   ordered_skill_ids: string[]
   skill_statuses: Record<string, KnowledgeStatus>
+  skill_notes: Record<string, string>
   created_at: string
   is_active: boolean
 }
@@ -46,6 +48,7 @@ export type Progress = {
 
 export type ImportPlanPayload = {
   schema_version?: string
+  title?: string
   skills: PlanGraphSkill[]
   target_skill_ids: string[]
   mode: LearningMode
@@ -54,6 +57,7 @@ export type ImportPlanPayload = {
 
 export type ImportTemplate = {
   schema_version: string
+  title: string
   skills: PlanGraphSkill[]
   target_skill_ids: string[]
   mode: LearningMode

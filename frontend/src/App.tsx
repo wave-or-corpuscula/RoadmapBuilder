@@ -4,19 +4,23 @@ import './App.css'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import PlanBuilderPage from './pages/PlanBuilderPage'
+import PlanWorkspacePage from './pages/PlanWorkspacePage'
 import { getMe, login, refresh, register } from './shared/api/authApi'
-import { getPlan, getPlanGraph, getProgress, importPlan, listPlans, updatePlanSkillStatus } from './shared/api/planApi'
+import { getPlan, getPlanGraph, getProgress, importPlan, listPlans, updatePlanSkillNote, updatePlanSkillStatus } from './shared/api/planApi'
 import { ApiError } from './shared/api/client'
 import { clearAuthState, getAuthState, setAuthState } from './store/authStore'
 import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph, Progress, User } from './shared/types/api'
 
-type AppPath = '/dashboard' | '/plans/new'
+type AppPath = '/dashboard' | '/plans/new' | '/plans/view'
 const LAST_PLAN_ID_KEY = 'arb:last_plan_id'
 
 function getCurrentPath(): AppPath {
   const path = window.location.pathname
   if (path === '/plans/new') {
     return '/plans/new'
+  }
+  if (path === '/plans/view') {
+    return '/plans/view'
   }
   return '/dashboard'
 }
@@ -175,7 +179,7 @@ function App() {
     setProgress(currentProgress)
   }
 
-  async function handleImportPlan(payload: ImportPlanPayload): Promise<{ plan: Plan; graph: PlanGraph }> {
+  async function handleImportPlan(payload: ImportPlanPayload): Promise<void> {
     if (!accessToken) {
       throw new Error('Not authenticated')
     }
@@ -191,7 +195,7 @@ function App() {
     } catch {
       setRecentPlans([])
     }
-    return { plan: created, graph }
+    navigate('/plans/view')
   }
 
   async function handleUpdatePlanSkillStatus(planId: string, skillId: string, status: KnowledgeStatus): Promise<Plan> {
@@ -212,7 +216,18 @@ function App() {
       throw new Error('Not authenticated')
     }
     await openExistingPlan(accessToken, planId)
-    navigate('/plans/new')
+    navigate('/plans/view')
+  }
+
+  async function handleUpdatePlanSkillNote(planId: string, skillId: string, note: string): Promise<Plan> {
+    if (!accessToken) {
+      throw new Error('Not authenticated')
+    }
+    const updatedPlan = await updatePlanSkillNote(accessToken, planId, skillId, note)
+    if (currentPlan && currentPlan.id === updatedPlan.id) {
+      setCurrentPlan(updatedPlan)
+    }
+    return updatedPlan
   }
 
   function handleSignOut() {
@@ -243,11 +258,34 @@ function App() {
   if (path === '/plans/new') {
     return (
       <PlanBuilderPage
+        onBack={() => navigate('/dashboard')}
+        onImportPlan={handleImportPlan}
+      />
+    )
+  }
+
+  if (path === '/plans/view') {
+    if (!currentPlan || !currentGraph) {
+      return (
+        <main className="app-shell">
+          <header className="topbar">
+            <h1>Plan</h1>
+          </header>
+          <section className="card">
+            <p>No plan selected.</p>
+            <button onClick={() => navigate('/dashboard')}>Back to dashboard</button>
+          </section>
+        </main>
+      )
+    }
+
+    return (
+      <PlanWorkspacePage
         plan={currentPlan}
         graph={currentGraph}
         onBack={() => navigate('/dashboard')}
-        onImportPlan={handleImportPlan}
         onUpdatePlanSkillStatus={handleUpdatePlanSkillStatus}
+        onUpdatePlanSkillNote={handleUpdatePlanSkillNote}
       />
     )
   }
