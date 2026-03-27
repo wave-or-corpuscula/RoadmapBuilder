@@ -69,8 +69,12 @@
   min-height: 0;
   flex: 1;
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
+}
+
+.workspace-body.with-panel {
+  grid-template-columns: 1fr 360px;
 }
 
 .workspace-sidebar {
@@ -271,7 +275,7 @@ button:disabled {
 
 .graph-node header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
@@ -279,13 +283,30 @@ button:disabled {
 
 .graph-node h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.93rem;
+  line-height: 1.2;
+  max-width: 170px;
+}
+
+.note-trigger {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  padding: 0;
+  background: #eef3fb;
+  color: #314b76;
+  border: 1px solid #c4d2ea;
 }
 
 .graph-node p {
   margin: 0 0 10px;
   color: #445573;
   font-size: 0.84rem;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
 }
 
 @media (max-width: 700px) {
@@ -294,7 +315,7 @@ button:disabled {
     align-items: stretch;
   }
 
-  .workspace-body {
+  .workspace-body.with-panel {
     grid-template-columns: 1fr;
   }
 }

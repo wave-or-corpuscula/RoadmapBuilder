@@ -1,11 +1,10 @@
-import type { KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
+import type { Plan, PlanGraph } from '../shared/types/api'
 
 type Props = {
   graph: PlanGraph
   plan: Plan
   selectedSkillId: string | null
-  onSelectSkill: (skillId: string) => void
-  onStatusChange: (skillId: string, status: KnowledgeStatus) => void
+  onSelectSkill: (skillId: string | null) => void
 }
 
 type NodePosition = {
@@ -14,9 +13,9 @@ type NodePosition = {
 }
 
 const NODE_WIDTH = 220
-const NODE_HEIGHT = 108
+const NODE_HEIGHT = 132
 const H_GAP = 140
-const V_GAP = 40
+const V_GAP = 74
 const PADDING_X = 30
 const PADDING_Y = 30
 
@@ -72,7 +71,7 @@ function computePositions(graph: PlanGraph): Record<string, NodePosition> {
   return positions
 }
 
-function statusClass(status: KnowledgeStatus, selected: boolean): string {
+function statusClass(status: Plan['skill_statuses'][string], selected: boolean): string {
   const selectedClass = selected ? ' selected' : ''
   if (status === 'mastered') {
     return `graph-node mastered${selectedClass}`
@@ -83,13 +82,13 @@ function statusClass(status: KnowledgeStatus, selected: boolean): string {
   return `graph-node unknown${selectedClass}`
 }
 
-export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSkill, onStatusChange }: Props) {
+export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSkill }: Props) {
   const positions = computePositions(graph)
   const maxX = Math.max(...Object.values(positions).map((value) => value.x), 0) + NODE_WIDTH + PADDING_X
   const maxY = Math.max(...Object.values(positions).map((value) => value.y), 0) + NODE_HEIGHT + PADDING_Y
 
   return (
-    <div className="graph-scroll">
+    <div className="graph-scroll" onClick={() => onSelectSkill(null)}>
       <div className="graph-stage" style={{ width: `${maxX}px`, height: `${maxY}px` }}>
         <svg className="graph-edges" width={maxX} height={maxY}>
           {graph.skills.flatMap((skill) =>
@@ -127,23 +126,39 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
             <article
               key={skill.id}
               className={statusClass(status, isSelected)}
-              onClick={() => onSelectSkill(skill.id)}
+              onClick={(event) => {
+                event.stopPropagation()
+                if (isSelected) {
+                  onSelectSkill(null)
+                  return
+                }
+                onSelectSkill(skill.id)
+              }}
               style={{
                 left: `${position.x}px`,
                 top: `${position.y}px`,
                 width: `${NODE_WIDTH}px`,
-                minHeight: `${NODE_HEIGHT}px`,
+                height: `${NODE_HEIGHT}px`,
               }}
             >
               <header>
                 <h3>{skill.title}</h3>
+                <button
+                  type="button"
+                  className="note-trigger"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    if (isSelected) {
+                      onSelectSkill(null)
+                      return
+                    }
+                    onSelectSkill(skill.id)
+                  }}
+                >
+                  ✎
+                </button>
               </header>
               <p>{skill.description}</p>
-              <select value={status} onChange={(event) => onStatusChange(skill.id, event.target.value as KnowledgeStatus)}>
-                <option value="unknown">unknown</option>
-                <option value="learning">learning</option>
-                <option value="mastered">mastered</option>
-              </select>
             </article>
           )
         })}
