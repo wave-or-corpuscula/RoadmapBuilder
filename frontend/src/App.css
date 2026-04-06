@@ -229,15 +229,25 @@ button:disabled {
 }
 
 .graph-scroll {
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid #dce4f2;
   border-radius: 12px;
   background: linear-gradient(180deg, #fcfdff, #f4f7fb);
   height: 100%;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+}
+
+.graph-scroll.dragging {
+  cursor: grabbing;
 }
 
 .graph-stage {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  will-change: transform;
 }
 
 .graph-edges {
@@ -255,6 +265,7 @@ button:disabled {
   padding: 10px;
   box-shadow: 0 6px 14px rgba(17, 35, 68, 0.08);
   cursor: pointer;
+  user-select: none;
 }
 
 .graph-node.selected {
@@ -286,17 +297,6 @@ button:disabled {
   font-size: 0.93rem;
   line-height: 1.2;
   max-width: 170px;
-}
-
-.note-trigger {
-  margin-left: auto;
-  width: 26px;
-  height: 26px;
-  border-radius: 8px;
-  padding: 0;
-  background: #eef3fb;
-  color: #314b76;
-  border: 1px solid #c4d2ea;
 }
 
 .graph-node p {

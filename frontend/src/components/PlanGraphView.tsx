@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import type { PointerEvent } from 'react'
+
 import type { Plan, PlanGraph } from '../shared/types/api'
 
 type Props = {
@@ -86,10 +89,65 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
   const positions = computePositions(graph)
   const maxX = Math.max(...Object.values(positions).map((value) => value.x), 0) + NODE_WIDTH + PADDING_X
   const maxY = Math.max(...Object.values(positions).map((value) => value.y), 0) + NODE_HEIGHT + PADDING_Y
+  const [offset, setOffset] = useState({ x: 24, y: 24 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [movedDuringDrag, setMovedDuringDrag] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const [startOffset, setStartOffset] = useState({ x: 0, y: 0 })
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
+      return
+    }
+    setIsDragging(true)
+    setMovedDuringDrag(false)
+    setDragStart({ x: event.clientX, y: event.clientY })
+    setStartOffset(offset)
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (!isDragging) {
+      return
+    }
+    const dx = event.clientX - dragStart.x
+    const dy = event.clientY - dragStart.y
+    if (!movedDuringDrag && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      setMovedDuringDrag(true)
+    }
+    setOffset({ x: startOffset.x + dx, y: startOffset.y + dy })
+  }
+
+  function handlePointerUp(event: PointerEvent<HTMLDivElement>) {
+    if (!isDragging) {
+      return
+    }
+    setIsDragging(false)
+    event.currentTarget.releasePointerCapture(event.pointerId)
+  }
 
   return (
-    <div className="graph-scroll" onClick={() => onSelectSkill(null)}>
-      <div className="graph-stage" style={{ width: `${maxX}px`, height: `${maxY}px` }}>
+    <div
+      className={`graph-scroll ${isDragging ? 'dragging' : ''}`}
+      onClick={() => {
+        if (movedDuringDrag) {
+          return
+        }
+        onSelectSkill(null)
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <div
+        className="graph-stage"
+        style={{
+          width: `${maxX}px`,
+          height: `${maxY}px`,
+          transform: `translate(${offset.x}px, ${offset.y}px)`,
+        }}
+      >
         <svg className="graph-edges" width={maxX} height={maxY}>
           {graph.skills.flatMap((skill) =>
             skill.prerequisites.map((prerequisite) => {
@@ -140,23 +198,10 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
                 width: `${NODE_WIDTH}px`,
                 height: `${NODE_HEIGHT}px`,
               }}
+              onPointerDown={(event) => event.stopPropagation()}
             >
               <header>
                 <h3>{skill.title}</h3>
-                <button
-                  type="button"
-                  className="note-trigger"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    if (isSelected) {
-                      onSelectSkill(null)
-                      return
-                    }
-                    onSelectSkill(skill.id)
-                  }}
-                >
-                  ✎
-                </button>
               </header>
               <p>{skill.description}</p>
             </article>
