@@ -228,85 +228,63 @@ button:disabled {
   align-self: center;
 }
 
-.graph-scroll {
-  overflow: hidden;
+.graph-flow-shell {
+  height: 100%;
   border: 1px solid #dce4f2;
   border-radius: 12px;
+  overflow: hidden;
   background: linear-gradient(180deg, #fcfdff, #f4f7fb);
-  height: 100%;
-  position: relative;
-  cursor: grab;
-  user-select: none;
 }
 
-.graph-scroll.dragging {
-  cursor: grabbing;
-}
-
-.graph-stage {
-  position: absolute;
-  top: 0;
-  left: 0;
-  will-change: transform;
-}
-
-.graph-edges {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.graph-node {
-  position: absolute;
+.react-flow__node.plan-node {
   border: 1px solid #c6d2e6;
   border-left-width: 5px;
   border-radius: 12px;
   background: #fff;
-  padding: 10px;
   box-shadow: 0 6px 14px rgba(17, 35, 68, 0.08);
-  cursor: pointer;
-  user-select: none;
+  padding: 10px;
 }
 
-.graph-node.selected {
+.react-flow__node.plan-node.selected {
   box-shadow: 0 0 0 2px #3a6bb2, 0 8px 16px rgba(17, 35, 68, 0.12);
 }
 
-.graph-node.unknown {
+.react-flow__node.plan-node.unknown {
   border-left-color: #8ea0bf;
 }
 
-.graph-node.learning {
+.react-flow__node.plan-node.learning {
   border-left-color: #d49a29;
 }
 
-.graph-node.mastered {
+.react-flow__node.plan-node.mastered {
   border-left-color: #2c8f4a;
 }
 
-.graph-node header {
-  display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.graph-node h3 {
-  margin: 0;
+.plan-node-content h3 {
+  margin: 0 0 8px;
   font-size: 0.93rem;
   line-height: 1.2;
   max-width: 170px;
 }
 
-.graph-node p {
-  margin: 0 0 10px;
+.plan-node-content p {
+  margin: 0;
   color: #445573;
   font-size: 0.84rem;
   overflow: hidden;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+}
+
+.plan-side-handle {
+  width: 10px !important;
+  height: 10px !important;
+  border-radius: 999px !important;
+  border: 2px solid #4f6fa3 !important;
+  background: #f4f8ff !important;
+  pointer-events: none !important;
 }
 
 @media (max-width: 700px) {
