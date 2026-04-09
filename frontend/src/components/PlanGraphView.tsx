@@ -90,6 +90,35 @@ function computePositions(graph: PlanGraph): Record<string, NodePosition> {
   return positions
 }
 
+function collectPrerequisiteEdgeIds(graph: PlanGraph, targetSkillId: string | null): Set<string> {
+  if (!targetSkillId) {
+    return new Set()
+  }
+
+  const byId = new Map(graph.skills.map((skill) => [skill.id, skill]))
+  const visited = new Set<string>()
+  const edgeIds = new Set<string>()
+
+  function walk(skillId: string) {
+    if (visited.has(skillId)) {
+      return
+    }
+    visited.add(skillId)
+    const skill = byId.get(skillId)
+    if (!skill) {
+      return
+    }
+
+    for (const prerequisite of skill.prerequisites) {
+      edgeIds.add(`${prerequisite}->${skill.id}`)
+      walk(prerequisite)
+    }
+  }
+
+  walk(targetSkillId)
+  return edgeIds
+}
+
 function statusClass(status: Plan['skill_statuses'][string], selected: boolean): string {
   const selectedClass = selected ? ' selected' : ''
   if (status === 'mastered') {
@@ -125,6 +154,10 @@ function PlanNode({ data }: NodeProps<PlanNodeData>) {
 export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSkill }: Props) {
   const positions = useMemo(() => computePositions(graph), [graph])
   const nodeTypes = useMemo(() => ({ planNode: PlanNode }), [])
+  const prerequisiteEdgeIds = useMemo(
+    () => collectPrerequisiteEdgeIds(graph, selectedSkillId),
+    [graph, selectedSkillId],
+  )
 
   const nodes = useMemo<Node<PlanNodeData>[]>(
     () =>
@@ -153,11 +186,10 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
     () =>
       graph.skills.flatMap((skill) =>
         skill.prerequisites.map((prerequisite) => {
-          const isHighlighted =
-            selectedSkillId !== null &&
-            (prerequisite === selectedSkillId || skill.id === selectedSkillId)
+          const isHighlighted = prerequisiteEdgeIds.has(`${prerequisite}->${skill.id}`)
           const targetStatus = plan.skill_statuses[skill.id] ?? 'unknown'
           const edgeColor = statusEdgeColor(targetStatus)
+          const hasSelection = selectedSkillId !== null
 
           return {
             id: `${prerequisite}->${skill.id}`,
@@ -167,15 +199,15 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
             targetHandle: 'target-left',
             animated: false,
             style: {
-              stroke: edgeColor,
-              strokeWidth: isHighlighted ? 3 : 2,
-              opacity: selectedSkillId !== null && !isHighlighted ? 0.35 : 1,
+              stroke: hasSelection ? (isHighlighted ? edgeColor : '#95a3bf') : '#95a3bf',
+              strokeWidth: hasSelection ? (isHighlighted ? 3 : 2) : 2,
+              opacity: hasSelection ? (isHighlighted ? 1 : 0.22) : 1,
             },
             type: 'default',
           }
         }),
       ),
-    [graph.skills, selectedSkillId],
+    [graph.skills, plan.skill_statuses, prerequisiteEdgeIds, selectedSkillId],
   )
 
   const handleNodeClick: NodeMouseHandler = (_event, node) => {
