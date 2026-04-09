@@ -119,6 +119,32 @@ function collectPrerequisiteEdgeIds(graph: PlanGraph, targetSkillId: string | nu
   return edgeIds
 }
 
+function collectPrerequisiteNodeIds(graph: PlanGraph, targetSkillId: string | null): Set<string> {
+  if (!targetSkillId) {
+    return new Set()
+  }
+
+  const byId = new Map(graph.skills.map((skill) => [skill.id, skill]))
+  const nodeIds = new Set<string>()
+
+  function walk(skillId: string) {
+    if (nodeIds.has(skillId)) {
+      return
+    }
+    nodeIds.add(skillId)
+    const skill = byId.get(skillId)
+    if (!skill) {
+      return
+    }
+    for (const prerequisite of skill.prerequisites) {
+      walk(prerequisite)
+    }
+  }
+
+  walk(targetSkillId)
+  return nodeIds
+}
+
 function statusClass(status: Plan['skill_statuses'][string], selected: boolean): string {
   const selectedClass = selected ? ' selected' : ''
   if (status === 'mastered') {
@@ -158,6 +184,10 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
     () => collectPrerequisiteEdgeIds(graph, selectedSkillId),
     [graph, selectedSkillId],
   )
+  const prerequisiteNodeIds = useMemo(
+    () => collectPrerequisiteNodeIds(graph, selectedSkillId),
+    [graph, selectedSkillId],
+  )
 
   const nodes = useMemo<Node<PlanNodeData>[]>(
     () =>
@@ -165,11 +195,13 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
         const position = positions[skill.id] ?? { x: 0, y: 0 }
         const status = plan.skill_statuses[skill.id] ?? 'unknown'
         const isSelected = skill.id === selectedSkillId
+        const isRequired = selectedSkillId !== null && prerequisiteNodeIds.has(skill.id)
+        const isDimmed = selectedSkillId !== null && !isRequired
         return {
           id: skill.id,
           position,
           type: 'planNode',
-          className: statusClass(status, isSelected),
+          className: `${statusClass(status, isSelected)}${isRequired ? ' required' : ''}${isDimmed ? ' dimmed' : ''}`,
           style: { width: NODE_WIDTH, height: NODE_HEIGHT },
           data: {
             title: skill.title,
@@ -179,7 +211,7 @@ export default function PlanGraphView({ graph, plan, selectedSkillId, onSelectSk
           selectable: false,
         }
       }),
-    [graph.skills, plan.skill_statuses, positions, selectedSkillId],
+    [graph.skills, plan.skill_statuses, positions, prerequisiteNodeIds, selectedSkillId],
   )
 
   const edges = useMemo<Edge[]>(

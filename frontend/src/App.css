@@ -249,6 +249,14 @@ button:disabled {
   box-shadow: 0 0 0 2px #3a6bb2, 0 8px 16px rgba(17, 35, 68, 0.12);
 }
 
+.react-flow__node.plan-node.required {
+  box-shadow: 0 0 0 2px #7aa2e8, 0 8px 16px rgba(17, 35, 68, 0.1);
+}
+
+.react-flow__node.plan-node.dimmed {
+  opacity: 0.38;
+}
+
 .react-flow__node.plan-node.unknown {
   border-left-color: #8ea0bf;
 }
