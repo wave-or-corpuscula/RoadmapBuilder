@@ -10,14 +10,15 @@ type Props = {
 }
 
 export default function PlanBuilderPage({ onBack, onImportPlan }: Props) {
-  const [rawJson, setRawJson] = useState(
-    '{\n  "schema_version": "1.0",\n  "skills": [],\n  "target_skill_ids": [],\n  "mode": "balanced"\n}',
+  const [rawJson, setRawJson] = useState('')
+  const [jsonPlaceholder, setJsonPlaceholder] = useState(
+    '{\n  "schema_version": "1.0",\n  "title": "Python Backend Roadmap",\n  "skills": [...],\n  "target_skill_ids": [...],\n  "mode": "balanced"\n}',
   )
   const [topic, setTopic] = useState('')
-  const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [isPromptLoading, setIsPromptLoading] = useState(false)
   const [promptError, setPromptError] = useState<string | null>(null)
-  const [copyMessage, setCopyMessage] = useState<string | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [isJsonInfoOpen, setIsJsonInfoOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
@@ -25,9 +26,9 @@ export default function PlanBuilderPage({ onBack, onImportPlan }: Props) {
     async function loadTemplate() {
       try {
         const template = await getImportTemplate()
-        setRawJson(JSON.stringify(template, null, 2))
+        setJsonPlaceholder(JSON.stringify(template, null, 2))
       } catch {
-        // Keep fallback starter JSON if template endpoint is unavailable.
+        // Keep fallback placeholder if template endpoint is unavailable.
       }
     }
     void loadTemplate()
@@ -47,37 +48,23 @@ export default function PlanBuilderPage({ onBack, onImportPlan }: Props) {
     const normalizedTopic = topic.trim()
     if (!normalizedTopic) {
       setPromptError('Введите тему для плана.')
-      setGeneratedPrompt('')
-      setCopyMessage(null)
+      setToastMessage(null)
       return
     }
 
     setIsPromptLoading(true)
     setPromptError(null)
-    setCopyMessage(null)
+    setToastMessage(null)
     try {
       const response = await getImportPrompt(normalizedTopic)
-      setGeneratedPrompt(response.prompt)
+      await navigator.clipboard.writeText(response.prompt)
+      setToastMessage('Запрос скопирован в буфер обмена.')
+      window.setTimeout(() => setToastMessage(null), 2200)
     } catch (submitError) {
-      const message = submitError instanceof Error ? submitError.message : 'Failed to build prompt'
+      const message = submitError instanceof Error ? submitError.message : 'Не удалось получить запрос'
       setPromptError(message)
-      setGeneratedPrompt('')
     } finally {
       setIsPromptLoading(false)
-    }
-  }
-
-  async function handleCopyPrompt() {
-    if (!generatedPrompt.trim()) {
-      setCopyMessage('Сначала сгенерируйте запрос.')
-      return
-    }
-
-    try {
-      await navigator.clipboard.writeText(generatedPrompt)
-      setCopyMessage('Запрос скопирован.')
-    } catch {
-      setCopyMessage('Не удалось скопировать запрос.')
     }
   }
 
@@ -114,74 +101,113 @@ export default function PlanBuilderPage({ onBack, onImportPlan }: Props) {
   }
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div>
-          <h1>Plan Import</h1>
-          <p>Upload plan JSON, then track progress directly in imported graph.</p>
-        </div>
-        <button className="secondary" onClick={onBack}>
-          Back to dashboard
-        </button>
-      </header>
-      <section className="card">
-        <div className="form prompt-builder">
-          <label>
-            Тема для генерации плана
-            <input
-              type="text"
-              value={topic}
-              onChange={(event) => setTopic(event.target.value)}
-              placeholder="Например: Backend на Python для junior+"
-            />
-          </label>
-          <button type="button" onClick={handleGeneratePrompt} disabled={isPromptLoading}>
-            {isPromptLoading ? 'Генерируем...' : 'Получить запрос'}
+    <main className="import-page">
+      <section className="import-hero">
+        <header className="topbar">
+          <div>
+            <h1>Импорт учебного плана</h1>
+            <p>Сгенерируй JSON через ИИ, вставь его сюда и начни работать с графом.</p>
+          </div>
+          <button className="secondary" onClick={onBack}>
+            Back to dashboard
           </button>
-          {promptError ? <p className="error-text">{promptError}</p> : null}
-          <label>
-            Запрос для ИИ
-            <textarea rows={12} value={generatedPrompt} readOnly spellCheck={false} />
-          </label>
-          <div className="actions">
-            <button type="button" className="secondary" onClick={handleCopyPrompt} disabled={!generatedPrompt.trim()}>
-              Скопировать запрос
-            </button>
-            {copyMessage ? <p className="status-text">{copyMessage}</p> : null}
+        </header>
+
+        <div className="import-grid">
+          <div className="import-stack">
+            <section className="import-card">
+              <h2>Шаг 1. Получить запрос для ИИ</h2>
+              <div className="form">
+                <label>
+                  Тема плана
+                  <input
+                    type="text"
+                    value={topic}
+                    onChange={(event) => setTopic(event.target.value)}
+                    placeholder="Например: Backend на Python для junior+"
+                  />
+                </label>
+                <button type="button" onClick={handleGeneratePrompt} disabled={isPromptLoading}>
+                  {isPromptLoading ? 'Генерируем...' : 'Получить запрос'}
+                </button>
+                {promptError ? <p className="error-text">{promptError}</p> : null}
+              </div>
+            </section>
+            <section className="import-hint">
+              <h3>Что дальше</h3>
+              <ul>
+                <li>1. Введи тему и нажми «Получить запрос» — он сразу скопируется.</li>
+                <li>2. Вставь запрос в ИИ и попроси вернуть строго JSON по шаблону.</li>
+                <li>3. Вставь JSON сюда (или загрузи файл) и нажми «Import plan».</li>
+              </ul>
+            </section>
+          </div>
+
+          <section className="import-card">
+            <h2>Шаг 2. Вставить JSON-план</h2>
+            <form className="form" onSubmit={handleSubmit}>
+              <label>
+                <span className="label-inline">
+                  Plan JSON
+                  <button
+                    type="button"
+                    className="info-icon"
+                    onClick={() => setIsJsonInfoOpen(true)}
+                    aria-label="Показать формат JSON"
+                    title="Показать формат JSON"
+                  >
+                    i
+                  </button>
+                </span>
+                <textarea
+                  rows={22}
+                  className="plan-json-input"
+                  value={rawJson}
+                  onChange={(event) => setRawJson(event.target.value)}
+                  spellCheck={false}
+                />
+              </label>
+              <label>
+                Или выбрать JSON-файл
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={async (event) => {
+                    const file = event.target.files?.[0]
+                    if (!file) {
+                      return
+                    }
+                    const text = await file.text()
+                    setRawJson(text)
+                  }}
+                />
+              </label>
+              {error ? <p className="error-text">{error}</p> : null}
+              <button type="submit" disabled={isLoading}>
+                {isLoading ? 'Importing...' : 'Import plan'}
+              </button>
+            </form>
+          </section>
+        </div>
+      </section>
+      {toastMessage ? (
+        <div className="toast" role="status" aria-live="polite">
+          {toastMessage}
+        </div>
+      ) : null}
+      {isJsonInfoOpen ? (
+        <div className="modal-backdrop" onClick={() => setIsJsonInfoOpen(false)}>
+          <div className="modal-card" onClick={(event) => event.stopPropagation()}>
+            <header className="modal-head">
+              <h3>Формат JSON</h3>
+              <button type="button" className="secondary" onClick={() => setIsJsonInfoOpen(false)}>
+                Close
+              </button>
+            </header>
+            <pre className="json-preview">{jsonPlaceholder}</pre>
           </div>
         </div>
-
-        <form className="form" onSubmit={handleSubmit}>
-          <label>
-            Plan JSON
-            <textarea
-              rows={12}
-              value={rawJson}
-              onChange={(event) => setRawJson(event.target.value)}
-              spellCheck={false}
-            />
-          </label>
-          <label>
-            Or pick JSON file
-            <input
-              type="file"
-              accept=".json,application/json"
-              onChange={async (event) => {
-                const file = event.target.files?.[0]
-                if (!file) {
-                  return
-                }
-                const text = await file.text()
-                setRawJson(text)
-              }}
-            />
-          </label>
-          {error ? <p className="error-text">{error}</p> : null}
-          <button type="submit" disabled={isLoading}>
-            {isLoading ? 'Importing...' : 'Import plan'}
-          </button>
-        </form>
-      </section>
+      ) : null}
     </main>
   )
 }
