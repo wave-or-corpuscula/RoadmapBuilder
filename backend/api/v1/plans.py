@@ -1,3 +1,5 @@
+import hashlib
+import json
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -40,6 +42,7 @@ class PlanResponse(BaseModel):
     id: str
     user_id: str
     title: str
+    fingerprint: str | None = None
     goal: GoalResponse
     ordered_skill_ids: list[str]
     skill_statuses: dict[str, KnowledgeStatus]
@@ -103,6 +106,7 @@ def _to_response(plan: LearningPlan) -> PlanResponse:
         id=plan.id or "",
         user_id=plan.user_id,
         title=plan.title,
+        fingerprint=plan.fingerprint,
         goal=GoalResponse(target_skill_ids=plan.goal.target_skill_ids, mode=plan.goal.mode),
         ordered_skill_ids=plan.ordered_skill_ids,
         skill_statuses=plan.skill_statuses,
@@ -176,6 +180,36 @@ def _build_import_prompt(topic: str) -> str:
         "- target_skill_ids не пустой.\n\n"
         "Ответ: только JSON объект."
     )
+
+
+def _build_plan_fingerprint(payload: ImportPlanRequest) -> str:
+    schema_version = payload.schema_version or IMPORT_SCHEMA_VERSION
+
+    normalized_skills = []
+    for item in sorted(payload.skills, key=lambda skill: skill.id):
+        normalized_skills.append(
+            {
+                "id": item.id,
+                "title": item.title,
+                "description": item.description,
+                "difficulty": item.difficulty,
+                "prerequisites": sorted(item.prerequisites),
+            }
+        )
+
+    canonical_payload = {
+        "schema_version": schema_version,
+        "skills": normalized_skills,
+        "target_skill_ids": sorted(payload.target_skill_ids),
+        "mode": payload.mode.value,
+    }
+    canonical_json = json.dumps(
+        canonical_payload,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
 
 
 @router.post("", response_model=PlanResponse)
@@ -279,6 +313,11 @@ def import_plan(
             ),
         )
 
+    fingerprint = _build_plan_fingerprint(payload)
+    existing = plan_repo.find_by_user_and_fingerprint(current_user_id, fingerprint)
+    if existing is not None:
+        return _to_response(existing)
+
     graph_payload = {"skills": [item.model_dump() for item in payload.skills]}
 
     try:
@@ -301,6 +340,7 @@ def import_plan(
     else:
         generated_title = ", ".join(payload.target_skill_ids[:2]) or "Learning Plan"
         plan = plan.with_title(f"Plan: {generated_title}")
+    plan = plan.with_fingerprint(fingerprint)
     plan = plan.with_graph_payload(graph_payload)
     imported_skill_ids = [skill.id for skill in payload.skills]
     plan = _enrich_plan_statuses(plan, knowledge, imported_skill_ids)

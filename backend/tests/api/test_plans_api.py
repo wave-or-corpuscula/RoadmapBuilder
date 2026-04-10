@@ -112,12 +112,50 @@ def test_import_plan_and_get_plan_graph():
     assert imported.status_code == 200
     plan_id = imported.json()["id"]
     assert imported.json()["title"] == "Backend Core Plan"
+    assert imported.json()["fingerprint"]
     assert imported.json()["ordered_skill_ids"] == ["x", "y", "z"]
 
     graph = client.get(f"/api/v1/plans/{plan_id}/graph", headers=headers)
     assert graph.status_code == 200
     skill_ids = {item["id"] for item in graph.json()["skills"]}
     assert skill_ids == {"x", "y", "z"}
+
+
+def test_import_same_payload_reuses_existing_plan_by_fingerprint():
+    raw_graph = {
+        "skills": [
+            {"id": "seed", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    payload = {
+        "schema_version": "1.0",
+        "title": "Data Engineering Plan",
+        "skills": [
+            {"id": "a", "title": "A", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "B", "description": "", "difficulty": 2, "prerequisites": ["a"]},
+            {"id": "goal", "title": "Goal", "description": "", "difficulty": 3, "prerequisites": ["b"]},
+        ],
+        "target_skill_ids": ["goal"],
+        "mode": "surface",
+    }
+
+    first = client.post("/api/v1/plans/import", headers=headers, json=payload)
+    assert first.status_code == 200
+    first_id = first.json()["id"]
+    first_fingerprint = first.json()["fingerprint"]
+
+    second = client.post("/api/v1/plans/import", headers=headers, json=payload)
+    assert second.status_code == 200
+    assert second.json()["id"] == first_id
+    assert second.json()["fingerprint"] == first_fingerprint
+
+    listed = client.get("/api/v1/plans", headers=headers)
+    assert listed.status_code == 200
+    assert len(listed.json()) == 1
 
 
 def test_imported_plan_allows_status_update_for_graph_nodes_not_in_ordered_list():
