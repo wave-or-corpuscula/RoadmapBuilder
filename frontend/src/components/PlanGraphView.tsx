@@ -33,10 +33,11 @@ type PlanNodeData = {
 
 const NODE_WIDTH = 220
 const NODE_HEIGHT = 132
-const H_GAP = 140
-const V_GAP = 74
+const H_GAP = 190
+const V_GAP = 56
 const PADDING_X = 30
 const PADDING_Y = 30
+const FORWARD_SPAN_X_OFFSET = 42
 
 function computeDepths(graph: PlanGraph): Record<string, number> {
   const byId = new Map(graph.skills.map((skill) => [skill.id, skill]))
@@ -75,15 +76,53 @@ function computePositions(graph: PlanGraph): Record<string, NodePosition> {
     columns[depth].push(skill.id)
   }
 
+  const dependentsMap: Record<string, string[]> = {}
+  for (const skill of graph.skills) {
+    dependentsMap[skill.id] = []
+  }
+  for (const skill of graph.skills) {
+    for (const prerequisite of skill.prerequisites) {
+      if (!dependentsMap[prerequisite]) {
+        dependentsMap[prerequisite] = []
+      }
+      dependentsMap[prerequisite].push(skill.id)
+    }
+  }
+
+  const farthestDepthMemo = new Map<string, number>()
+  function farthestDescendantDepth(skillId: string): number {
+    if (farthestDepthMemo.has(skillId)) {
+      return farthestDepthMemo.get(skillId) as number
+    }
+
+    const currentDepth = depths[skillId] ?? 0
+    const dependents = dependentsMap[skillId] ?? []
+    if (dependents.length === 0) {
+      farthestDepthMemo.set(skillId, currentDepth)
+      return currentDepth
+    }
+
+    const farthest = Math.max(
+      currentDepth,
+      ...dependents.map((dependentId) => farthestDescendantDepth(dependentId)),
+    )
+    farthestDepthMemo.set(skillId, farthest)
+    return farthest
+  }
+
   const positions: Record<string, NodePosition> = {}
+  const maxColumnSize = Math.max(...Object.values(columns).map((skillIds) => skillIds.length), 0)
   for (const [depthRaw, skillIds] of Object.entries(columns)) {
     const depth = Number(depthRaw)
     skillIds.sort()
+    const verticalOffsetRows = (maxColumnSize - skillIds.length) / 2
 
     skillIds.forEach((skillId, index) => {
+      const forwardSpan = (farthestDescendantDepth(skillId) ?? depth) - depth
+      const xOffset = depth == 0 ? 0 : Math.max(0, forwardSpan - 1) * FORWARD_SPAN_X_OFFSET
       positions[skillId] = {
-        x: PADDING_X + depth * (NODE_WIDTH + H_GAP),
-        y: PADDING_Y + index * (NODE_HEIGHT + V_GAP),
+        x: PADDING_X + depth * (NODE_WIDTH + H_GAP) + xOffset,
+        y: PADDING_Y + (verticalOffsetRows + index) * (NODE_HEIGHT + V_GAP),
       }
     })
   }
