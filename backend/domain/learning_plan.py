@@ -13,6 +13,7 @@ class LearningPlan:
     goal: LearningGoal
     ordered_skill_ids: list[str]
     title: str = "Untitled Plan"
+    fingerprint: str | None = None
     skill_statuses: dict[str, KnowledgeStatus] = field(default_factory=dict)
     skill_notes: dict[str, str] = field(default_factory=dict)
     graph_payload: dict | None = None
@@ -52,6 +53,7 @@ class LearningPlan:
             goal=self.goal,
             ordered_skill_ids=self.ordered_skill_ids,
             title=self.title,
+            fingerprint=self.fingerprint,
             skill_statuses=updated,
             skill_notes=dict(self.skill_notes),
             graph_payload=self.graph_payload,
@@ -75,6 +77,7 @@ class LearningPlan:
             goal=self.goal,
             ordered_skill_ids=self.ordered_skill_ids,
             title=self.title,
+            fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=updated_notes,
             graph_payload=self.graph_payload,
@@ -95,6 +98,7 @@ class LearningPlan:
             goal=self.goal,
             ordered_skill_ids=self.ordered_skill_ids,
             title=self.title,
+            fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
             graph_payload=self.graph_payload,
@@ -109,6 +113,7 @@ class LearningPlan:
             goal=self.goal,
             ordered_skill_ids=self.ordered_skill_ids,
             title=self.title,
+            fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
             graph_payload=graph_payload,
@@ -124,6 +129,22 @@ class LearningPlan:
             goal=self.goal,
             ordered_skill_ids=self.ordered_skill_ids,
             title=normalized_title,
+            fingerprint=self.fingerprint,
+            skill_statuses=dict(self.skill_statuses),
+            skill_notes=dict(self.skill_notes),
+            graph_payload=self.graph_payload,
+            created_at=self.created_at,
+            is_active=self.is_active,
+        )
+
+    def with_fingerprint(self, fingerprint: str) -> "LearningPlan":
+        return LearningPlan(
+            id=self.id,
+            user_id=self.user_id,
+            goal=self.goal,
+            ordered_skill_ids=self.ordered_skill_ids,
+            title=self.title,
+            fingerprint=fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
             graph_payload=self.graph_payload,
