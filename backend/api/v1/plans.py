@@ -315,8 +315,6 @@ def import_plan(
 
     fingerprint = _build_plan_fingerprint(payload)
     existing = plan_repo.find_by_user_and_fingerprint(current_user_id, fingerprint)
-    if existing is not None:
-        return _to_response(existing)
 
     graph_payload = {"skills": [item.model_dump() for item in payload.skills]}
 
@@ -337,13 +335,19 @@ def import_plan(
     plan = plan_service.build_plan(graph=imported_graph, goal=goal, knowledge=knowledge)
     if payload.title is not None:
         plan = plan.with_title(payload.title)
+    elif existing is not None:
+        plan = plan.with_title(existing.title)
     else:
         generated_title = ", ".join(payload.target_skill_ids[:2]) or "Learning Plan"
         plan = plan.with_title(f"Plan: {generated_title}")
     plan = plan.with_fingerprint(fingerprint)
     plan = plan.with_graph_payload(graph_payload)
+    if existing is not None and existing.skill_notes:
+        plan = plan.with_skill_notes(existing.skill_notes)
     imported_skill_ids = [skill.id for skill in payload.skills]
     plan = _enrich_plan_statuses(plan, knowledge, imported_skill_ids)
+    if existing is not None and existing.id is not None:
+        plan = plan.with_id(existing.id)
     plan = plan_repo.save(plan)
     return _to_response(plan)
 

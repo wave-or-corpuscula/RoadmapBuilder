@@ -151,3 +151,18 @@ class LearningPlan:
             created_at=self.created_at,
             is_active=self.is_active,
         )
+
+    def with_skill_notes(self, skill_notes: dict[str, str]) -> "LearningPlan":
+        return LearningPlan(
+            id=self.id,
+            user_id=self.user_id,
+            goal=self.goal,
+            ordered_skill_ids=self.ordered_skill_ids,
+            title=self.title,
+            fingerprint=self.fingerprint,
+            skill_statuses=dict(self.skill_statuses),
+            skill_notes=dict(skill_notes),
+            graph_payload=self.graph_payload,
+            created_at=self.created_at,
+            is_active=self.is_active,
+        )
