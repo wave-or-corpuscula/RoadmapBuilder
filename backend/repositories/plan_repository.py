@@ -19,3 +19,9 @@ class InMemoryPlanRepository:
 
     def list_by_user(self, user_id: str) -> list[LearningPlan]:
         return [plan for plan in self._plans.values() if plan.user_id == user_id]
+
+    def find_by_user_and_fingerprint(self, user_id: str, fingerprint: str) -> LearningPlan | None:
+        for plan in self._plans.values():
+            if plan.user_id == user_id and plan.fingerprint == fingerprint:
+                return plan
+        return None
