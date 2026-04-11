@@ -295,6 +295,7 @@ function App() {
       user={user}
       progress={progress}
       recentPlans={recentPlans}
+      currentGraph={currentGraph}
       onOpenImport={() => navigate('/plans/new')}
       onOpenPlan={handleOpenPlan}
       onSignOut={handleSignOut}

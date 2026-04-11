@@ -39,6 +39,42 @@
   padding: 24px 16px 32px;
 }
 
+.dashboard-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 10% 12%, #d8e8ff 0%, transparent 38%),
+    radial-gradient(circle at 85% 18%, #ffe2c6 0%, transparent 36%),
+    #f4f7fc;
+  padding: 24px 16px 40px;
+}
+
+.dashboard-hero {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.dashboard-card {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #dce4f2;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 14px 34px rgba(19, 37, 69, 0.1);
+  backdrop-filter: blur(3px);
+  align-self: start;
+}
+
+.dashboard-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+}
+
 .import-page {
   min-height: 100vh;
   background:
@@ -306,12 +342,20 @@ textarea {
 }
 
 button {
-  border: 0;
+  border: 1px solid rgba(34, 73, 126, 0.2);
   border-radius: 10px;
   padding: 10px 14px;
   background: #173a69;
   color: #fff;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(15, 37, 71, 0.14);
+  transition: transform 140ms ease, box-shadow 140ms ease, filter 140ms ease;
+}
+
+button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 37, 71, 0.18);
+  filter: saturate(1.04);
 }
 
 button.secondary {
@@ -326,6 +370,11 @@ button.danger {
 button:disabled {
   opacity: 0.7;
   cursor: not-allowed;
+}
+
+button.compact {
+  padding: 7px 11px;
+  font-size: 0.92rem;
 }
 
 .plain-list {
@@ -344,6 +393,181 @@ button:disabled {
 
 .plain-list li:last-child {
   border-bottom: 0;
+}
+
+.progress-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pill-button {
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  box-shadow: none;
+  transform: none;
+}
+
+.pill-button:hover {
+  transform: none;
+  box-shadow: none;
+  filter: none;
+}
+
+.pill-button.active {
+  border-color: #2e4d7a;
+  box-shadow: 0 0 0 2px rgba(46, 77, 122, 0.14);
+}
+
+.pill-button.unknown {
+  background: #edf1f8;
+  color: #3b4a63;
+}
+
+.pill-button.learning {
+  background: #fff0d1;
+  color: #7b5a11;
+}
+
+.pill-button.mastered {
+  background: #dff5e6;
+  color: #1b6d35;
+}
+
+.progress-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.progress-controls label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.84rem;
+  color: #3b4a63;
+}
+
+.pill {
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.pill.unknown {
+  background: #edf1f8;
+  color: #3b4a63;
+}
+
+.pill.learning {
+  background: #fff0d1;
+  color: #7b5a11;
+}
+
+.pill.mastered {
+  background: #dff5e6;
+  color: #1b6d35;
+}
+
+.progress-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 10px;
+}
+
+.progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e4eaf4;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fcfdff;
+}
+
+.progress-meta {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.progress-meta strong {
+  font-size: 0.94rem;
+  color: #213452;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-meta span {
+  font-size: 0.78rem;
+  color: #74819a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.progress-level {
+  display: grid;
+  justify-items: end;
+  gap: 6px;
+}
+
+.level-track {
+  display: grid;
+  grid-template-columns: repeat(3, 24px);
+  gap: 4px;
+}
+
+.level-track span {
+  height: 6px;
+  border-radius: 999px;
+  background: #e4e9f2;
+}
+
+.level-track span.active:nth-child(1) {
+  background: #8ea0bf;
+}
+
+.level-track.learning span.active:nth-child(1),
+.level-track.learning span.active:nth-child(2) {
+  background: #d49a29;
+}
+
+.level-track.mastered span.active:nth-child(1),
+.level-track.mastered span.active:nth-child(2),
+.level-track.mastered span.active:nth-child(3) {
+  background: #2c8f4a;
+}
+
+.status-tag {
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.status-tag.unknown {
+  color: #3b4a63;
+  background: #edf1f8;
+}
+
+.status-tag.learning {
+  color: #7b5a11;
+  background: #fff0d1;
+}
+
+.status-tag.mastered {
+  color: #1b6d35;
+  background: #dff5e6;
 }
 
 .error-text {
@@ -479,6 +703,23 @@ button:disabled {
 
   .import-grid {
     grid-template-columns: 1fr;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-row {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .progress-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .progress-level {
+    justify-items: start;
   }
 
   .toast {
