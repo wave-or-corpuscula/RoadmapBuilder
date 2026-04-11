@@ -137,7 +137,7 @@ export default function PlanBuilderPage({ onBack, onImportPlan }: Props) {
               <h3>Что дальше</h3>
               <ul>
                 <li>1. Введи тему и нажми «Получить запрос» — он сразу скопируется.</li>
-                <li>2. Вставь запрос в ИИ и попроси вернуть строго JSON по шаблону.</li>
+                <li>2. Вставь этот запрос в ИИ.</li>
                 <li>3. Вставь JSON сюда (или загрузи файл) и нажми «Import plan».</li>
               </ul>
             </section>
