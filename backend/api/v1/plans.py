@@ -65,6 +65,10 @@ class UpdatePlanSkillNoteRequest(BaseModel):
     note: str
 
 
+class UpdatePlanTitleRequest(BaseModel):
+    title: str = Field(..., min_length=1)
+
+
 class ImportSkillItem(BaseModel):
     id: str = Field(..., min_length=1)
     title: str = Field(..., min_length=1)
@@ -447,6 +451,22 @@ def update_plan_skill_status(
     user_knowledge.set_status(skill_id, payload.status)
     knowledge_repo.save(user_knowledge)
 
+    updated = plan_repo.save(updated)
+    return _to_response(updated)
+
+
+@router.patch("/{plan_id}/title", response_model=PlanResponse)
+def update_plan_title(
+    plan_id: str,
+    payload: UpdatePlanTitleRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+) -> PlanResponse:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    updated = plan.with_title(payload.title)
     updated = plan_repo.save(updated)
     return _to_response(updated)
 

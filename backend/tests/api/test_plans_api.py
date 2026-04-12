@@ -203,6 +203,38 @@ def test_imported_plan_allows_status_update_for_graph_nodes_not_in_ordered_list(
     assert update_again.json()["skill_statuses"]["a"] == "learning"
 
 
+def test_update_plan_title():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "goal", "title": "", "description": "", "difficulty": 1, "prerequisites": ["a"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    created = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface", "mastered_skill_ids": []},
+        headers=headers,
+    )
+    assert created.status_code == 200
+    plan_id = created.json()["id"]
+
+    updated = client.patch(
+        f"/api/v1/plans/{plan_id}/title",
+        json={"title": "Новый план по API"},
+        headers=headers,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["title"] == "Новый план по API"
+
+    fetched = client.get(f"/api/v1/plans/{plan_id}", headers=headers)
+    assert fetched.status_code == 200
+    assert fetched.json()["title"] == "Новый план по API"
+
+
 def test_imported_plan_keeps_mastered_status_for_nodes_outside_ordered_list():
     raw_graph = {
         "skills": [
