@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import PlanGraphView from '../components/PlanGraphView'
 import type { KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
@@ -7,6 +7,7 @@ type Props = {
   plan: Plan
   graph: PlanGraph
   onBack: () => void
+  onUpdatePlanTitle: (planId: string, title: string) => Promise<Plan>
   onUpdatePlanSkillStatus: (planId: string, skillId: string, status: KnowledgeStatus) => Promise<Plan>
   onUpdatePlanSkillNote: (planId: string, skillId: string, note: string) => Promise<Plan>
 }
@@ -36,13 +37,26 @@ export default function PlanWorkspacePage({
   plan,
   graph,
   onBack,
+  onUpdatePlanTitle,
   onUpdatePlanSkillStatus,
   onUpdatePlanSkillNote,
 }: Props) {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
+  const [titleDraft, setTitleDraft] = useState(plan.title)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [isSavingTitle, setIsSavingTitle] = useState(false)
+  const [titleError, setTitleError] = useState<string | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isSavingNote, setIsSavingNote] = useState(false)
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
+
+  useEffect(() => {
+    setTitleDraft(plan.title)
+    setIsEditingTitle(false)
+    setIsSavingTitle(false)
+    setTitleError(null)
+  }, [plan.title])
 
   useEffect(() => {
     if (!selectedSkillId) {
@@ -105,6 +119,47 @@ export default function PlanWorkspacePage({
     })()
   }
 
+  async function handleSaveTitle() {
+    const normalized = titleDraft.trim()
+    if (!normalized) {
+      setTitleError('Введите название плана')
+      return
+    }
+    if (normalized === plan.title) {
+      setIsEditingTitle(false)
+      setTitleError(null)
+      return
+    }
+    try {
+      setIsSavingTitle(true)
+      await onUpdatePlanTitle(plan.id, normalized)
+      setIsEditingTitle(false)
+      setTitleError(null)
+    } catch (error) {
+      setTitleError(error instanceof Error ? error.message : 'Не удалось обновить название плана')
+    } finally {
+      setIsSavingTitle(false)
+    }
+  }
+
+  function enableTitleEditing() {
+    if (isSavingTitle) {
+      return
+    }
+    if (!isEditingTitle) {
+      setIsEditingTitle(true)
+      requestAnimationFrame(() => titleInputRef.current?.select())
+    }
+  }
+
+  async function handleTitleBlur() {
+    if (!isEditingTitle) {
+      return
+    }
+    await handleSaveTitle()
+    setIsEditingTitle(false)
+  }
+
   async function handleBack() {
     await flushCurrentNote()
     onBack()
@@ -114,11 +169,40 @@ export default function PlanWorkspacePage({
     <main className="plan-workspace">
       <header className="workspace-topbar">
         <div>
-          <h1>{plan.title}</h1>
+          <div className="workspace-title-row">
+            <input
+              ref={titleInputRef}
+              className={`workspace-title-input ${isEditingTitle ? 'editing' : ''}`}
+              value={titleDraft}
+              onChange={(event) => setTitleDraft(event.target.value)}
+              onClick={enableTitleEditing}
+              onFocus={enableTitleEditing}
+              onBlur={() => void handleTitleBlur()}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  event.currentTarget.blur()
+                  return
+                }
+                if (event.key === 'Escape') {
+                  setTitleDraft(plan.title)
+                  setTitleError(null)
+                  setIsEditingTitle(false)
+                  event.currentTarget.blur()
+                }
+              }}
+              placeholder="Название плана"
+              maxLength={120}
+              readOnly={!isEditingTitle || isSavingTitle}
+              aria-label="Название плана"
+            />
+          </div>
           <p>Основной режим работы с планом.</p>
+          {isSavingTitle ? <p className="status-text">Сохраняю название...</p> : null}
+          {titleError ? <p className="error-text">{titleError}</p> : null}
         </div>
         <button className="secondary" onClick={() => void handleBack()}>
-          Back to dashboard
+          Назад к дашборду
         </button>
       </header>
       <div className={`workspace-body ${selectedSkill ? 'with-panel' : ''}`}>

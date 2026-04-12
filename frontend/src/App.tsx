@@ -6,7 +6,16 @@ import DashboardPage from './pages/DashboardPage'
 import PlanBuilderPage from './pages/PlanBuilderPage'
 import PlanWorkspacePage from './pages/PlanWorkspacePage'
 import { getMe, login, refresh, register } from './shared/api/authApi'
-import { getPlan, getPlanGraph, getProgress, importPlan, listPlans, updatePlanSkillNote, updatePlanSkillStatus } from './shared/api/planApi'
+import {
+  getPlan,
+  getPlanGraph,
+  getProgress,
+  importPlan,
+  listPlans,
+  updatePlanSkillNote,
+  updatePlanSkillStatus,
+  updatePlanTitle,
+} from './shared/api/planApi'
 import { ApiError } from './shared/api/client'
 import { clearAuthState, getAuthState, setAuthState } from './store/authStore'
 import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph, Progress, User } from './shared/types/api'
@@ -230,6 +239,18 @@ function App() {
     return updatedPlan
   }
 
+  async function handleUpdatePlanTitle(planId: string, title: string): Promise<Plan> {
+    if (!accessToken) {
+      throw new Error('Not authenticated')
+    }
+    const updatedPlan = await updatePlanTitle(accessToken, planId, title)
+    if (currentPlan && currentPlan.id === updatedPlan.id) {
+      setCurrentPlan(updatedPlan)
+    }
+    setRecentPlans((prev) => prev.map((plan) => (plan.id === updatedPlan.id ? updatedPlan : plan)))
+    return updatedPlan
+  }
+
   function handleSignOut() {
     clearAuthState()
     setAccessToken(null)
@@ -284,6 +305,7 @@ function App() {
         plan={currentPlan}
         graph={currentGraph}
         onBack={() => navigate('/dashboard')}
+        onUpdatePlanTitle={handleUpdatePlanTitle}
         onUpdatePlanSkillStatus={handleUpdatePlanSkillStatus}
         onUpdatePlanSkillNote={handleUpdatePlanSkillNote}
       />

@@ -201,6 +201,40 @@
   font-size: 1.4rem;
 }
 
+.workspace-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.workspace-title-row h1 {
+  margin: 0;
+}
+
+.workspace-title-input {
+  width: min(560px, 90vw);
+  min-height: 42px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 4px 8px;
+  background: transparent;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #142746;
+  cursor: text;
+}
+
+.workspace-title-input:focus {
+  outline: none;
+}
+
+.workspace-title-input.editing {
+  border-color: #c3cfe1;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(46, 77, 122, 0.14);
+}
+
 .workspace-topbar p {
   margin: 0;
   color: #5b6880;
