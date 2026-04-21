@@ -42,6 +42,9 @@ class PlanResponse(BaseModel):
     id: str
     user_id: str
     title: str
+    parent_plan_id: str | None = None
+    root_plan_id: str | None = None
+    source_skill_id: str | None = None
     fingerprint: str | None = None
     goal: GoalResponse
     ordered_skill_ids: list[str]
@@ -67,6 +70,10 @@ class UpdatePlanSkillNoteRequest(BaseModel):
 
 class UpdatePlanTitleRequest(BaseModel):
     title: str = Field(..., min_length=1)
+
+
+class DerivePlanRequest(BaseModel):
+    skill_id: str = Field(..., min_length=1)
 
 
 class ImportSkillItem(BaseModel):
@@ -105,11 +112,18 @@ class ImportPromptResponse(BaseModel):
     prompt: str
 
 
+class DeletePlanResponse(BaseModel):
+    deleted_ids: list[str]
+
+
 def _to_response(plan: LearningPlan) -> PlanResponse:
     return PlanResponse(
         id=plan.id or "",
         user_id=plan.user_id,
         title=plan.title,
+        parent_plan_id=plan.parent_plan_id,
+        root_plan_id=plan.root_plan_id,
+        source_skill_id=plan.source_skill_id,
         fingerprint=plan.fingerprint,
         goal=GoalResponse(target_skill_ids=plan.goal.target_skill_ids, mode=plan.goal.mode),
         ordered_skill_ids=plan.ordered_skill_ids,
@@ -148,6 +162,45 @@ def _enrich_plan_statuses(
         if status_value != KnowledgeStatus.UNKNOWN:
             enriched = enriched.with_skill_status(skill_id, status_value)
     return enriched
+
+
+def _sync_skill_status_in_user_plans(
+    plan_repo: InMemoryPlanRepository,
+    user_id: str,
+    skill_id: str,
+    status: KnowledgeStatus,
+) -> None:
+    for item in plan_repo.list_by_user(user_id):
+        try:
+            updated = item.with_skill_status(skill_id=skill_id, status=status)
+        except ValueError:
+            continue
+        plan_repo.save(updated)
+
+
+def _collect_descendant_plan_ids(
+    plan_repo: InMemoryPlanRepository,
+    user_id: str,
+    root_plan_id: str,
+) -> list[str]:
+    plans = plan_repo.list_by_user(user_id)
+    children_by_parent: dict[str, list[str]] = {}
+    for item in plans:
+        if item.id is None:
+            continue
+        if item.parent_plan_id is None:
+            continue
+        children_by_parent.setdefault(item.parent_plan_id, []).append(item.id)
+
+    result: list[str] = []
+    stack: list[str] = [root_plan_id]
+    while stack:
+        current = stack.pop()
+        if current in result:
+            continue
+        result.append(current)
+        stack.extend(children_by_parent.get(current, []))
+    return result
 
 
 def _build_import_prompt(topic: str) -> str:
@@ -240,6 +293,7 @@ def create_plan(
     generated_title = ", ".join(payload.target_skill_ids[:2]) or "Learning Plan"
     plan = plan.with_title(f"Plan: {generated_title}")
     plan = _enrich_plan_statuses(plan, knowledge)
+    plan = plan.with_hierarchy(parent_plan_id=None, root_plan_id=None, source_skill_id=None)
     plan = plan_repo.save(plan)
     return _to_response(plan)
 
@@ -352,6 +406,14 @@ def import_plan(
     plan = _enrich_plan_statuses(plan, knowledge, imported_skill_ids)
     if existing is not None and existing.id is not None:
         plan = plan.with_id(existing.id)
+    if existing is not None:
+        plan = plan.with_hierarchy(
+            parent_plan_id=existing.parent_plan_id,
+            root_plan_id=existing.root_plan_id,
+            source_skill_id=existing.source_skill_id,
+        )
+    else:
+        plan = plan.with_hierarchy(parent_plan_id=None, root_plan_id=None, source_skill_id=None)
     plan = plan_repo.save(plan)
     return _to_response(plan)
 
@@ -366,6 +428,32 @@ def get_plan(
     if plan is None or plan.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     return _to_response(plan)
+
+
+@router.delete("/{plan_id}", response_model=DeletePlanResponse)
+def delete_plan(
+    plan_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+) -> DeletePlanResponse:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    if plan.parent_plan_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Root plan cannot be deleted",
+        )
+
+    deleted_ids = _collect_descendant_plan_ids(
+        plan_repo=plan_repo,
+        user_id=current_user_id,
+        root_plan_id=plan_id,
+    )
+    for item_id in deleted_ids:
+        plan_repo.delete(item_id)
+
+    return DeletePlanResponse(deleted_ids=deleted_ids)
 
 
 @router.get("/{plan_id}/graph")
@@ -424,9 +512,63 @@ def rebuild_plan(
     rebuilt = _enrich_plan_statuses(rebuilt, knowledge, status_scope)
     if current.graph_payload is not None:
         rebuilt = rebuilt.with_graph_payload(current.graph_payload)
+    rebuilt = rebuilt.with_hierarchy(
+        parent_plan_id=current.parent_plan_id,
+        root_plan_id=current.root_plan_id,
+        source_skill_id=current.source_skill_id,
+    )
     rebuilt = rebuilt.with_id(plan_id)
     rebuilt = plan_repo.save(rebuilt)
     return _to_response(rebuilt)
+
+
+@router.post("/{plan_id}/derive", response_model=PlanResponse)
+def derive_plan(
+    plan_id: str,
+    payload: DerivePlanRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_service: PlanService = Depends(get_plan_service),
+    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
+    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+) -> PlanResponse:
+    source_plan = plan_repo.get(plan_id)
+    if source_plan is None or source_plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    if source_plan.graph_payload is not None:
+        source_graph = SkillGraph.from_dict(source_plan.graph_payload)
+    else:
+        source_graph = graph_repo.get().get_subgraph(source_plan.goal.target_skill_ids, source_plan.goal.mode)
+
+    if payload.skill_id not in source_graph.skills:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Skill is not in plan graph: {payload.skill_id}",
+        )
+    if len(source_graph.prerequisites_map[payload.skill_id]) == 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Root skill cannot be selected as a subplan goal",
+        )
+
+    goal = LearningGoal(target_skill_ids=[payload.skill_id], mode=LearningMode.SURFACE)
+    knowledge = knowledge_repo.get_or_create(current_user_id)
+
+    derived_subgraph = source_graph.get_subgraph(goal.target_skill_ids, goal.mode)
+    derived = plan_service.build_plan(graph=derived_subgraph, goal=goal, knowledge=knowledge)
+    derived = _enrich_plan_statuses(derived, knowledge, list(derived_subgraph.skills.keys()))
+
+    source_skill_title = source_graph.skills[payload.skill_id].title
+    derived = derived.with_title(source_skill_title)
+    derived = derived.with_hierarchy(
+        parent_plan_id=source_plan.id,
+        root_plan_id=source_plan.root_plan_id or source_plan.id,
+        source_skill_id=payload.skill_id,
+    )
+    derived = derived.with_graph_payload(_graph_to_payload(derived_subgraph))
+    derived = plan_repo.save(derived)
+    return _to_response(derived)
 
 
 @router.patch("/{plan_id}/skills/{skill_id}/status", response_model=PlanResponse)
@@ -443,7 +585,7 @@ def update_plan_skill_status(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
 
     try:
-        updated = plan.with_skill_status(skill_id=skill_id, status=payload.status)
+        plan.with_skill_status(skill_id=skill_id, status=payload.status)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
@@ -451,8 +593,16 @@ def update_plan_skill_status(
     user_knowledge.set_status(skill_id, payload.status)
     knowledge_repo.save(user_knowledge)
 
-    updated = plan_repo.save(updated)
-    return _to_response(updated)
+    _sync_skill_status_in_user_plans(
+        plan_repo=plan_repo,
+        user_id=plan.user_id,
+        skill_id=skill_id,
+        status=payload.status,
+    )
+    current = plan_repo.get(plan_id)
+    if current is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    return _to_response(current)
 
 
 @router.patch("/{plan_id}/title", response_model=PlanResponse)

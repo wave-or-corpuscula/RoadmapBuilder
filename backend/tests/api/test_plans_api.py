@@ -235,6 +235,113 @@ def test_update_plan_title():
     assert fetched.json()["title"] == "Новый план по API"
 
 
+def test_derive_plan_creates_child_with_hierarchy_links():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "A", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "B", "description": "", "difficulty": 2, "prerequisites": ["a"]},
+            {"id": "goal", "title": "Goal", "description": "", "difficulty": 3, "prerequisites": ["b"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    created = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface", "mastered_skill_ids": []},
+        headers=headers,
+    )
+    assert created.status_code == 200
+    parent = created.json()
+
+    derived = client.post(
+        f"/api/v1/plans/{parent['id']}/derive",
+        json={"skill_id": "b"},
+        headers=headers,
+    )
+    assert derived.status_code == 200
+    body = derived.json()
+    assert body["parent_plan_id"] == parent["id"]
+    assert body["root_plan_id"] == parent["id"]
+    assert body["source_skill_id"] == "b"
+    assert body["title"] == "B"
+
+    listed = client.get("/api/v1/plans", headers=headers)
+    assert listed.status_code == 200
+    assert len(listed.json()) == 2
+
+
+def test_derive_plan_rejects_root_skill():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "A", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "B", "description": "", "difficulty": 2, "prerequisites": ["a"]},
+            {"id": "goal", "title": "Goal", "description": "", "difficulty": 3, "prerequisites": ["b"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    created = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface", "mastered_skill_ids": []},
+        headers=headers,
+    )
+    assert created.status_code == 200
+    parent_id = created.json()["id"]
+
+    derived = client.post(
+        f"/api/v1/plans/{parent_id}/derive",
+        json={"skill_id": "a"},
+        headers=headers,
+    )
+    assert derived.status_code == 400
+    assert "Root skill" in derived.json()["detail"]
+
+
+def test_updating_status_in_child_plan_updates_parent_plan():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "A", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "B", "description": "", "difficulty": 2, "prerequisites": ["a"]},
+            {"id": "goal", "title": "Goal", "description": "", "difficulty": 3, "prerequisites": ["b"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    parent_created = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface", "mastered_skill_ids": []},
+        headers=headers,
+    )
+    assert parent_created.status_code == 200
+    parent_id = parent_created.json()["id"]
+
+    child_created = client.post(
+        f"/api/v1/plans/{parent_id}/derive",
+        json={"skill_id": "b"},
+        headers=headers,
+    )
+    assert child_created.status_code == 200
+    child_id = child_created.json()["id"]
+
+    changed = client.patch(
+        f"/api/v1/plans/{child_id}/skills/b/status",
+        json={"status": "mastered"},
+        headers=headers,
+    )
+    assert changed.status_code == 200
+    assert changed.json()["skill_statuses"]["b"] == "mastered"
+
+    parent_after = client.get(f"/api/v1/plans/{parent_id}", headers=headers)
+    assert parent_after.status_code == 200
+    assert parent_after.json()["skill_statuses"]["b"] == "mastered"
+
+
 def test_imported_plan_keeps_mastered_status_for_nodes_outside_ordered_list():
     raw_graph = {
         "skills": [
