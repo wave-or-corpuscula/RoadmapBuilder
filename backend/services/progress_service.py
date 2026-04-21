@@ -1,15 +1,15 @@
 from backend.domain.enums import KnowledgeStatus
 from backend.domain.user_knowledge import UserKnowledge
-from backend.repositories.knowledge_repository import InMemoryKnowledgeRepository
+from backend.repositories.knowledge_repository import PostgresKnowledgeRepository
 
 
 class ProgressService:
-    def get_user_knowledge(self, repo: InMemoryKnowledgeRepository, user_id: str) -> UserKnowledge:
+    def get_user_knowledge(self, repo: PostgresKnowledgeRepository, user_id: str) -> UserKnowledge:
         return repo.get_or_create(user_id)
 
     def update_skill_status(
         self,
-        repo: InMemoryKnowledgeRepository,
+        repo: PostgresKnowledgeRepository,
         user_id: str,
         skill_id: str,
         status: KnowledgeStatus,

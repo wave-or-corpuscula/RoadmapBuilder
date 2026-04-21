@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from backend.api.dependencies import get_auth_service, get_user_repo
-from backend.repositories.user_repository import InMemoryUserRepository
+from backend.repositories.user_repository import PostgresUserRepository
 from backend.services.auth_service import (
     AuthConflictError,
     AuthService,
@@ -38,7 +38,7 @@ class AuthTokensResponse(BaseModel):
 @router.post("/register", response_model=AuthTokensResponse, status_code=status.HTTP_201_CREATED)
 def register(
     payload: RegisterRequest,
-    user_repo: InMemoryUserRepository = Depends(get_user_repo),
+    user_repo: PostgresUserRepository = Depends(get_user_repo),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> AuthTokensResponse:
     try:
@@ -59,7 +59,7 @@ def register(
 @router.post("/login", response_model=AuthTokensResponse)
 def login(
     payload: LoginRequest,
-    user_repo: InMemoryUserRepository = Depends(get_user_repo),
+    user_repo: PostgresUserRepository = Depends(get_user_repo),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> AuthTokensResponse:
     try:
@@ -72,7 +72,7 @@ def login(
 @router.post("/refresh", response_model=AuthTokensResponse)
 def refresh(
     payload: RefreshRequest,
-    user_repo: InMemoryUserRepository = Depends(get_user_repo),
+    user_repo: PostgresUserRepository = Depends(get_user_repo),
     auth_service: AuthService = Depends(get_auth_service),
 ) -> AuthTokensResponse:
     try:

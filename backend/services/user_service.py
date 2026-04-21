@@ -1,9 +1,9 @@
 from backend.domain.user import User
-from backend.repositories.user_repository import InMemoryUserRepository
+from backend.repositories.user_repository import PostgresUserRepository
 
 
 class UserService:
-    def get_or_create_me(self, repo: InMemoryUserRepository, user_id: str) -> User:
+    def get_or_create_me(self, repo: PostgresUserRepository, user_id: str) -> User:
         existing = repo.get(user_id)
         if existing is not None:
             return existing
@@ -18,7 +18,7 @@ class UserService:
 
     def update_me(
         self,
-        repo: InMemoryUserRepository,
+        repo: PostgresUserRepository,
         user_id: str,
         email: str | None = None,
         display_name: str | None = None,

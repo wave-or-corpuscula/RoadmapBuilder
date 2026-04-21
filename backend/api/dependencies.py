@@ -1,7 +1,7 @@
-from backend.repositories.graph_repository import InMemoryGraphRepository
-from backend.repositories.knowledge_repository import InMemoryKnowledgeRepository
-from backend.repositories.plan_repository import InMemoryPlanRepository
-from backend.repositories.user_repository import InMemoryUserRepository
+from backend.repositories.graph_repository import PostgresGraphRepository
+from backend.repositories.knowledge_repository import PostgresKnowledgeRepository
+from backend.repositories.plan_repository import PostgresPlanRepository
+from backend.repositories.user_repository import PostgresUserRepository
 from backend.services.auth_service import AuthService
 from backend.services.graph_service import GraphService
 from backend.services.plan_service import PlanService
@@ -29,17 +29,17 @@ def get_auth_service() -> AuthService:
     return AuthService()
 
 
-def get_graph_repo() -> InMemoryGraphRepository:
+def get_graph_repo() -> PostgresGraphRepository:
     raise RuntimeError("Graph repository dependency not configured")
 
 
-def get_plan_repo() -> InMemoryPlanRepository:
+def get_plan_repo() -> PostgresPlanRepository:
     raise RuntimeError("Plan repository dependency not configured")
 
 
-def get_knowledge_repo() -> InMemoryKnowledgeRepository:
+def get_knowledge_repo() -> PostgresKnowledgeRepository:
     raise RuntimeError("Knowledge repository dependency not configured")
 
 
-def get_user_repo() -> InMemoryUserRepository:
+def get_user_repo() -> PostgresUserRepository:
     raise RuntimeError("User repository dependency not configured")

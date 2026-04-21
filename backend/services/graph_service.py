@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from backend.domain.skill import Skill
 from backend.domain.skill_graph import SkillGraph
-from backend.repositories.graph_repository import InMemoryGraphRepository
+from backend.repositories.graph_repository import PostgresGraphRepository
 
 
 class GraphValidationError(ValueError):
@@ -37,7 +37,7 @@ class GraphService:
 
     def create_skill(
         self,
-        repo: InMemoryGraphRepository,
+        repo: PostgresGraphRepository,
         skill_id: str,
         title: str,
         description: str,
@@ -56,11 +56,12 @@ class GraphService:
         except ValueError as exc:
             raise GraphValidationError(str(exc)) from exc
 
+        repo.set(graph)
         return self._to_dto(graph, skill_id)
 
     def update_skill(
         self,
-        repo: InMemoryGraphRepository,
+        repo: PostgresGraphRepository,
         skill_id: str,
         title: str | None = None,
         description: str | None = None,
@@ -92,7 +93,7 @@ class GraphService:
         repo.set(rebuilt)
         return self._to_dto(rebuilt, skill_id)
 
-    def delete_skill(self, repo: InMemoryGraphRepository, skill_id: str, force: bool = False):
+    def delete_skill(self, repo: PostgresGraphRepository, skill_id: str, force: bool = False):
         graph = repo.get()
         if skill_id not in graph.skills:
             raise GraphNotFoundError(f"Skill not found: {skill_id}")

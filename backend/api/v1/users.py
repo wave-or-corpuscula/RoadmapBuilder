@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 from backend.api.security import get_current_user_id
 from backend.api.dependencies import get_user_repo, get_user_service
-from backend.repositories.user_repository import InMemoryUserRepository
+from backend.repositories.user_repository import PostgresUserRepository
 from backend.services.user_service import UserService
 
 
@@ -24,7 +24,7 @@ class UpdateMeRequest(BaseModel):
 @router.get("/me", response_model=UserResponse)
 def get_me(
     user_id: str = Depends(get_current_user_id),
-    user_repo: InMemoryUserRepository = Depends(get_user_repo),
+    user_repo: PostgresUserRepository = Depends(get_user_repo),
     user_service: UserService = Depends(get_user_service),
 ) -> UserResponse:
     user = user_service.get_or_create_me(user_repo, user_id)
@@ -35,7 +35,7 @@ def get_me(
 def update_me(
     payload: UpdateMeRequest,
     user_id: str = Depends(get_current_user_id),
-    user_repo: InMemoryUserRepository = Depends(get_user_repo),
+    user_repo: PostgresUserRepository = Depends(get_user_repo),
     user_service: UserService = Depends(get_user_service),
 ) -> UserResponse:
     user = user_service.update_me(

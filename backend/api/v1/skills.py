@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field
 
 from backend.api.dependencies import get_graph_repo, get_graph_service
-from backend.repositories.graph_repository import InMemoryGraphRepository
+from backend.repositories.graph_repository import PostgresGraphRepository
 from backend.services.graph_service import (
     GraphConflictError,
     GraphNotFoundError,
@@ -50,7 +50,7 @@ def _to_response(dto: SkillDTO) -> SkillResponse:
 
 @router.get("", response_model=list[SkillResponse])
 def list_skills(
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> list[SkillResponse]:
     graph = graph_repo.get()
@@ -60,7 +60,7 @@ def list_skills(
 @router.get("/{skill_id}", response_model=SkillResponse)
 def get_skill(
     skill_id: str,
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> SkillResponse:
     try:
@@ -73,7 +73,7 @@ def get_skill(
 @router.post("", response_model=SkillResponse, status_code=status.HTTP_201_CREATED)
 def create_skill(
     payload: CreateSkillRequest,
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> SkillResponse:
     try:
@@ -96,7 +96,7 @@ def create_skill(
 def update_skill(
     skill_id: str,
     payload: UpdateSkillRequest,
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> SkillResponse:
     try:
@@ -119,7 +119,7 @@ def update_skill(
 def delete_skill(
     skill_id: str,
     force: bool = Query(False),
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> Response:
     try:

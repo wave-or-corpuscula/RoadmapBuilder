@@ -8,8 +8,8 @@ from backend.api.dependencies import (
     get_progress_service,
 )
 from backend.domain.enums import KnowledgeStatus
-from backend.repositories.graph_repository import InMemoryGraphRepository
-from backend.repositories.knowledge_repository import InMemoryKnowledgeRepository
+from backend.repositories.graph_repository import PostgresGraphRepository
+from backend.repositories.knowledge_repository import PostgresKnowledgeRepository
 from backend.services.progress_service import ProgressService
 
 
@@ -28,7 +28,7 @@ class ProgressResponse(BaseModel):
 @router.get("/me", response_model=ProgressResponse)
 def get_progress(
     current_user_id: str = Depends(get_current_user_id),
-    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
+    knowledge_repo: PostgresKnowledgeRepository = Depends(get_knowledge_repo),
     progress_service: ProgressService = Depends(get_progress_service),
 ) -> ProgressResponse:
     knowledge = progress_service.get_user_knowledge(repo=knowledge_repo, user_id=current_user_id)
@@ -40,8 +40,8 @@ def update_progress_skill_status(
     skill_id: str,
     payload: UpdateSkillStatusRequest,
     current_user_id: str = Depends(get_current_user_id),
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
-    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
+    knowledge_repo: PostgresKnowledgeRepository = Depends(get_knowledge_repo),
     progress_service: ProgressService = Depends(get_progress_service),
 ) -> ProgressResponse:
     if skill_id not in graph_repo.get().skills:

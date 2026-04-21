@@ -8,7 +8,7 @@ from backend.core.security import (
     verify_password,
 )
 from backend.domain.user import User
-from backend.repositories.user_repository import InMemoryUserRepository
+from backend.repositories.user_repository import PostgresUserRepository
 
 
 class AuthConflictError(ValueError):
@@ -26,7 +26,7 @@ class AuthUnauthorizedError(ValueError):
 class AuthService:
     def register(
         self,
-        repo: InMemoryUserRepository,
+        repo: PostgresUserRepository,
         email: str,
         password: str,
         display_name: str | None = None,
@@ -46,7 +46,7 @@ class AuthService:
         )
         return repo.save(user)
 
-    def login(self, repo: InMemoryUserRepository, email: str, password: str) -> User:
+    def login(self, repo: PostgresUserRepository, email: str, password: str) -> User:
         user = repo.get_by_email(email.strip().lower())
         if user is None or not verify_password(password, user.hashed_password):
             raise AuthUnauthorizedError("Invalid email or password")
@@ -59,7 +59,7 @@ class AuthService:
             "token_type": "bearer",
         }
 
-    def refresh(self, repo: InMemoryUserRepository, refresh_token: str) -> dict[str, str]:
+    def refresh(self, repo: PostgresUserRepository, refresh_token: str) -> dict[str, str]:
         payload = decode_token(refresh_token)
         if payload.get("type") != "refresh":
             raise AuthUnauthorizedError("Invalid refresh token")

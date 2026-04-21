@@ -17,9 +17,9 @@ from backend.domain.learning_goal import LearningGoal
 from backend.domain.learning_plan import LearningPlan
 from backend.domain.skill_graph import SkillGraph
 from backend.domain.user_knowledge import UserKnowledge
-from backend.repositories.graph_repository import InMemoryGraphRepository
-from backend.repositories.knowledge_repository import InMemoryKnowledgeRepository
-from backend.repositories.plan_repository import InMemoryPlanRepository
+from backend.repositories.graph_repository import PostgresGraphRepository
+from backend.repositories.knowledge_repository import PostgresKnowledgeRepository
+from backend.repositories.plan_repository import PostgresPlanRepository
 from backend.services.plan_service import PlanService
 
 
@@ -165,7 +165,7 @@ def _enrich_plan_statuses(
 
 
 def _sync_skill_status_in_user_plans(
-    plan_repo: InMemoryPlanRepository,
+    plan_repo: PostgresPlanRepository,
     user_id: str,
     skill_id: str,
     status: KnowledgeStatus,
@@ -179,7 +179,7 @@ def _sync_skill_status_in_user_plans(
 
 
 def _collect_descendant_plan_ids(
-    plan_repo: InMemoryPlanRepository,
+    plan_repo: PostgresPlanRepository,
     user_id: str,
     root_plan_id: str,
 ) -> list[str]:
@@ -274,9 +274,9 @@ def create_plan(
     payload: CreatePlanRequest,
     current_user_id: str = Depends(get_current_user_id),
     plan_service: PlanService = Depends(get_plan_service),
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
-    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
+    knowledge_repo: PostgresKnowledgeRepository = Depends(get_knowledge_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     graph = graph_repo.get()
     goal = LearningGoal(target_skill_ids=payload.target_skill_ids, mode=payload.mode)
@@ -301,7 +301,7 @@ def create_plan(
 @router.get("", response_model=list[PlanResponse])
 def list_plans(
     current_user_id: str = Depends(get_current_user_id),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> list[PlanResponse]:
     plans = plan_repo.list_by_user(current_user_id)
     plans.sort(key=lambda item: item.created_at, reverse=True)
@@ -359,8 +359,8 @@ def import_plan(
     payload: ImportPlanRequest,
     current_user_id: str = Depends(get_current_user_id),
     plan_service: PlanService = Depends(get_plan_service),
-    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    knowledge_repo: PostgresKnowledgeRepository = Depends(get_knowledge_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     if payload.schema_version is not None and payload.schema_version != IMPORT_SCHEMA_VERSION:
         raise HTTPException(
@@ -422,7 +422,7 @@ def import_plan(
 def get_plan(
     plan_id: str,
     current_user_id: str = Depends(get_current_user_id),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     plan = plan_repo.get(plan_id)
     if plan is None or plan.user_id != current_user_id:
@@ -434,7 +434,7 @@ def get_plan(
 def delete_plan(
     plan_id: str,
     current_user_id: str = Depends(get_current_user_id),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> DeletePlanResponse:
     plan = plan_repo.get(plan_id)
     if plan is None or plan.user_id != current_user_id:
@@ -460,8 +460,8 @@ def delete_plan(
 def get_plan_graph(
     plan_id: str,
     current_user_id: str = Depends(get_current_user_id),
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> dict:
     plan = plan_repo.get(plan_id)
     if plan is None or plan.user_id != current_user_id:
@@ -480,9 +480,9 @@ def rebuild_plan(
     payload: RebuildPlanRequest,
     current_user_id: str = Depends(get_current_user_id),
     plan_service: PlanService = Depends(get_plan_service),
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
-    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
+    knowledge_repo: PostgresKnowledgeRepository = Depends(get_knowledge_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     current = plan_repo.get(plan_id)
     if current is None or current.user_id != current_user_id:
@@ -528,9 +528,9 @@ def derive_plan(
     payload: DerivePlanRequest,
     current_user_id: str = Depends(get_current_user_id),
     plan_service: PlanService = Depends(get_plan_service),
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
-    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
+    knowledge_repo: PostgresKnowledgeRepository = Depends(get_knowledge_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     source_plan = plan_repo.get(plan_id)
     if source_plan is None or source_plan.user_id != current_user_id:
@@ -557,6 +557,7 @@ def derive_plan(
 
     derived_subgraph = source_graph.get_subgraph(goal.target_skill_ids, goal.mode)
     derived = plan_service.build_plan(graph=derived_subgraph, goal=goal, knowledge=knowledge)
+    derived = derived.with_graph_payload(_graph_to_payload(derived_subgraph))
     derived = _enrich_plan_statuses(derived, knowledge, list(derived_subgraph.skills.keys()))
 
     source_skill_title = source_graph.skills[payload.skill_id].title
@@ -566,7 +567,6 @@ def derive_plan(
         root_plan_id=source_plan.root_plan_id or source_plan.id,
         source_skill_id=payload.skill_id,
     )
-    derived = derived.with_graph_payload(_graph_to_payload(derived_subgraph))
     derived = plan_repo.save(derived)
     return _to_response(derived)
 
@@ -577,8 +577,8 @@ def update_plan_skill_status(
     skill_id: str,
     payload: UpdatePlanSkillStatusRequest,
     current_user_id: str = Depends(get_current_user_id),
-    knowledge_repo: InMemoryKnowledgeRepository = Depends(get_knowledge_repo),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    knowledge_repo: PostgresKnowledgeRepository = Depends(get_knowledge_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     plan = plan_repo.get(plan_id)
     if plan is None or plan.user_id != current_user_id:
@@ -610,7 +610,7 @@ def update_plan_title(
     plan_id: str,
     payload: UpdatePlanTitleRequest,
     current_user_id: str = Depends(get_current_user_id),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     plan = plan_repo.get(plan_id)
     if plan is None or plan.user_id != current_user_id:
@@ -627,7 +627,7 @@ def update_plan_skill_note(
     skill_id: str,
     payload: UpdatePlanSkillNoteRequest,
     current_user_id: str = Depends(get_current_user_id),
-    plan_repo: InMemoryPlanRepository = Depends(get_plan_repo),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
 ) -> PlanResponse:
     plan = plan_repo.get(plan_id)
     if plan is None or plan.user_id != current_user_id:

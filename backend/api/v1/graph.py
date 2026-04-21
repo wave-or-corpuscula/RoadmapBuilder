@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from backend.api.dependencies import get_graph_repo, get_graph_service
-from backend.repositories.graph_repository import InMemoryGraphRepository
+from backend.repositories.graph_repository import PostgresGraphRepository
 from backend.services.graph_service import GraphService, GraphValidationError
 
 
@@ -15,7 +15,7 @@ class ValidateGraphResponse(BaseModel):
 
 @router.get("")
 def get_graph(
-    graph_repo: InMemoryGraphRepository = Depends(get_graph_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
     graph_service: GraphService = Depends(get_graph_service),
 ) -> dict:
     return graph_service.graph_to_payload(graph_repo.get())
