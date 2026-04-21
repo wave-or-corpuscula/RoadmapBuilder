@@ -25,3 +25,7 @@ class InMemoryPlanRepository:
             if plan.user_id == user_id and plan.fingerprint == fingerprint:
                 return plan
         return None
+
+    def delete(self, plan_id: str) -> None:
+        if plan_id in self._plans:
+            del self._plans[plan_id]
