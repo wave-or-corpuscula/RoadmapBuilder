@@ -1,11 +1,11 @@
-from .graph_repository import InMemoryGraphRepository
-from .knowledge_repository import InMemoryKnowledgeRepository
-from .plan_repository import InMemoryPlanRepository
-from .user_repository import InMemoryUserRepository
+from .graph_repository import PostgresGraphRepository
+from .knowledge_repository import PostgresKnowledgeRepository
+from .plan_repository import PostgresPlanRepository
+from .user_repository import PostgresUserRepository
 
 __all__ = [
-    "InMemoryGraphRepository",
-    "InMemoryKnowledgeRepository",
-    "InMemoryPlanRepository",
-    "InMemoryUserRepository",
+    "PostgresGraphRepository",
+    "PostgresKnowledgeRepository",
+    "PostgresPlanRepository",
+    "PostgresUserRepository",
 ]

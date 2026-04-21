@@ -1,25 +1,46 @@
 from backend.domain.user import User
+from backend.core.db import SessionLocal
+from backend.db_models.models import UserModel
 
-
-class InMemoryUserRepository:
-    def __init__(self):
-        self._users: dict[str, User] = {}
-        self._email_to_user_id: dict[str, str] = {}
-
+class PostgresUserRepository:
     def get(self, user_id: str) -> User | None:
-        return self._users.get(user_id)
+        with SessionLocal() as session:
+            row = session.get(UserModel, user_id)
+            if row is None:
+                return None
+            return User(
+                id=row.id,
+                email=row.email,
+                display_name=row.display_name,
+                hashed_password=row.hashed_password,
+            )
 
     def get_by_email(self, email: str) -> User | None:
-        user_id = self._email_to_user_id.get(email)
-        if user_id is None:
-            return None
-        return self._users.get(user_id)
+        with SessionLocal() as session:
+            row = session.query(UserModel).filter(UserModel.email == email).one_or_none()
+            if row is None:
+                return None
+            return User(
+                id=row.id,
+                email=row.email,
+                display_name=row.display_name,
+                hashed_password=row.hashed_password,
+            )
 
     def save(self, user: User) -> User:
-        existing = self.get(user.id)
-        if existing is not None and existing.email != user.email:
-            self._email_to_user_id.pop(existing.email, None)
-
-        self._users[user.id] = user
-        self._email_to_user_id[user.email] = user.id
+        with SessionLocal() as session:
+            row = session.get(UserModel, user.id)
+            if row is None:
+                row = UserModel(
+                    id=user.id,
+                    email=user.email,
+                    display_name=user.display_name,
+                    hashed_password=user.hashed_password,
+                )
+                session.add(row)
+            else:
+                row.email = user.email
+                row.display_name = user.display_name
+                row.hashed_password = user.hashed_password
+            session.commit()
         return user
