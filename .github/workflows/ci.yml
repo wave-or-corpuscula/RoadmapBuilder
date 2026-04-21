@@ -53,6 +53,7 @@ jobs:
           DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/testdb
           JWT_SECRET_KEY: ci-secret-key
           SKILLS_JSON_PATH: backend/tests/data/skills.json
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           cd backend
           alembic upgrade head
