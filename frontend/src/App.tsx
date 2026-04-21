@@ -290,11 +290,11 @@ function App() {
       return (
         <main className="app-shell">
           <header className="topbar">
-            <h1>Plan</h1>
+            <h1>План</h1>
           </header>
           <section className="card">
-            <p>No plan selected.</p>
-            <button onClick={() => navigate('/dashboard')}>Back to dashboard</button>
+            <p>План не выбран.</p>
+            <button onClick={() => navigate('/dashboard')}>Назад на дашборд</button>
           </section>
         </main>
       )

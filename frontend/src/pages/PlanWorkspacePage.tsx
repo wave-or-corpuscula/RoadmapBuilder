@@ -12,26 +12,11 @@ type Props = {
   onUpdatePlanSkillNote: (planId: string, skillId: string, note: string) => Promise<Plan>
 }
 
-function escapeHtml(raw: string): string {
-  return raw
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-}
-
-function renderMarkdownPreview(markdown: string): string {
-  let html = escapeHtml(markdown)
-  html = html.replace(/^### (.*)$/gm, '<h3>$1</h3>')
-  html = html.replace(/^## (.*)$/gm, '<h2>$1</h2>')
-  html = html.replace(/^# (.*)$/gm, '<h1>$1</h1>')
-  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>')
-  html = html.replace(/`(.+?)`/g, '<code>$1</code>')
-  html = html.replace(/^- (.*)$/gm, '<li>$1</li>')
-  html = html.replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
-  html = html.replace(/\n/g, '<br />')
-  return html
-}
+const STATUS_OPTIONS: Array<{ value: KnowledgeStatus; label: string; className: string }> = [
+  { value: 'unknown', label: 'Не начато', className: 'unknown' },
+  { value: 'learning', label: 'В процессе', className: 'learning' },
+  { value: 'mastered', label: 'Освоено', className: 'mastered' },
+]
 
 export default function PlanWorkspacePage({
   plan,
@@ -79,7 +64,7 @@ export default function PlanWorkspacePage({
       await onUpdatePlanSkillStatus(plan.id, selectedSkillId, status)
       setSaveError(null)
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to update status')
+      setSaveError(error instanceof Error ? error.message : 'Не удалось обновить статус')
     }
   }
 
@@ -94,7 +79,7 @@ export default function PlanWorkspacePage({
       await onUpdatePlanSkillNote(plan.id, skillId, note)
       setSaveError(null)
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : 'Failed to save note')
+      setSaveError(error instanceof Error ? error.message : 'Не удалось сохранить заметку')
     } finally {
       setIsSavingNote(false)
     }
@@ -197,12 +182,11 @@ export default function PlanWorkspacePage({
               aria-label="Название плана"
             />
           </div>
-          <p>Основной режим работы с планом.</p>
           {isSavingTitle ? <p className="status-text">Сохраняю название...</p> : null}
           {titleError ? <p className="error-text">{titleError}</p> : null}
         </div>
         <button className="secondary" onClick={() => void handleBack()}>
-          Назад к дашборду
+          Панель управления
         </button>
       </header>
       <div className={`workspace-body ${selectedSkill ? 'with-panel' : ''}`}>
@@ -220,27 +204,34 @@ export default function PlanWorkspacePage({
               <h2>{selectedSkill.title}</h2>
               <p>{selectedSkill.description}</p>
               <label>
-                Knowledge status
-                <select
-                  value={plan.skill_statuses[selectedSkill.id] ?? 'unknown'}
-                  onChange={(event) => void handleStatusChange(event.target.value as KnowledgeStatus)}
-                >
-                  <option value="unknown">unknown</option>
-                  <option value="learning">learning</option>
-                  <option value="mastered">mastered</option>
-                </select>
+                Статус изучения
+                <div className="status-switcher" role="group" aria-label="Статус изучения навыка">
+                  {STATUS_OPTIONS.map((option) => {
+                    const currentStatus = plan.skill_statuses[selectedSkill.id] ?? 'unknown'
+                    const isActive = currentStatus === option.value
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        className={`status-switcher-btn ${option.className} ${isActive ? 'active' : ''}`}
+                        onClick={() => void handleStatusChange(option.value)}
+                      >
+                        {option.label}
+                      </button>
+                    )
+                  })}
+                </div>
               </label>
               <label>
-                Notes
+                Заметки
                 <textarea
                   rows={9}
                   value={noteDraft}
                   onChange={(event) => setNoteDraft(event.target.value)}
-                  placeholder="Markdown notes..."
+                  placeholder="Личные заметки по навыку..."
                 />
               </label>
-              <div className="markdown-preview" dangerouslySetInnerHTML={{ __html: renderMarkdownPreview(noteDraft) }} />
-              {isSavingNote ? <p className="status-text">Saving...</p> : null}
+              {isSavingNote ? <p className="status-text">Сохраняю заметку...</p> : null}
               {saveError ? <p className="error-text">{saveError}</p> : null}
             </section>
           </aside>
