@@ -7,6 +7,8 @@ import PlanBuilderPage from './pages/PlanBuilderPage'
 import PlanWorkspacePage from './pages/PlanWorkspacePage'
 import { getMe, login, refresh, register } from './shared/api/authApi'
 import {
+  deletePlan,
+  derivePlan,
   getPlan,
   getPlanGraph,
   getProgress,
@@ -251,6 +253,54 @@ function App() {
     return updatedPlan
   }
 
+  async function handleCreateDerivedPlan(planId: string, skillId: string): Promise<Plan> {
+    if (!accessToken) {
+      throw new Error('Not authenticated')
+    }
+    const derived = await derivePlan(accessToken, planId, skillId)
+    const graph = await getPlanGraph(accessToken, derived.id)
+    setCurrentPlan(derived)
+    setCurrentGraph(graph)
+    saveLastPlanId(derived.id)
+    try {
+      await refreshRecentPlans(accessToken)
+    } catch {
+      setRecentPlans([])
+    }
+    navigate('/plans/view')
+    return derived
+  }
+
+  async function handleDeletePlan(planId: string, fallbackPlanId: string | null): Promise<void> {
+    if (!accessToken) {
+      throw new Error('Not authenticated')
+    }
+
+    const result = await deletePlan(accessToken, planId)
+    const deleted = new Set(result.deleted_ids)
+    const plansAfterDelete = (await listPlans(accessToken)).sort(
+      (left, right) => right.created_at.localeCompare(left.created_at),
+    )
+    setRecentPlans(plansAfterDelete)
+
+    if (currentPlan && deleted.has(currentPlan.id)) {
+      clearLastPlanId()
+      const preferred =
+        fallbackPlanId && !deleted.has(fallbackPlanId)
+          ? plansAfterDelete.find((item) => item.id === fallbackPlanId)
+          : null
+      const nextPlan = preferred ?? plansAfterDelete[0] ?? null
+      if (nextPlan) {
+        await openExistingPlan(accessToken, nextPlan.id)
+        navigate('/plans/view')
+      } else {
+        setCurrentPlan(null)
+        setCurrentGraph(null)
+        navigate('/dashboard')
+      }
+    }
+  }
+
   function handleSignOut() {
     clearAuthState()
     setAccessToken(null)
@@ -304,7 +354,11 @@ function App() {
       <PlanWorkspacePage
         plan={currentPlan}
         graph={currentGraph}
+        plans={recentPlans}
         onBack={() => navigate('/dashboard')}
+        onOpenPlan={handleOpenPlan}
+        onDeletePlan={handleDeletePlan}
+        onCreateDerivedPlan={handleCreateDerivedPlan}
         onUpdatePlanTitle={handleUpdatePlanTitle}
         onUpdatePlanSkillStatus={handleUpdatePlanSkillStatus}
         onUpdatePlanSkillNote={handleUpdatePlanSkillNote}

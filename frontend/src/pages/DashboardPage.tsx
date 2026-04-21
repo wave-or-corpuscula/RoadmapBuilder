@@ -82,6 +82,11 @@ export default function DashboardPage({
     setStatusFilter((prev) => (prev === nextStatus ? 'all' : nextStatus))
   }
 
+  const visiblePlans = useMemo(
+    () => recentPlans.filter((plan) => !plan.parent_plan_id),
+    [recentPlans],
+  )
+
   return (
     <main className="dashboard-page">
       <section className="dashboard-hero">
@@ -108,11 +113,11 @@ export default function DashboardPage({
         <div className="dashboard-grid">
           <section className="dashboard-card">
             <h2>Последние планы</h2>
-            {recentPlans.length === 0 ? (
+            {visiblePlans.length === 0 ? (
               <p>Пока нет планов. Импортируй первый JSON-план.</p>
             ) : (
               <ul className="plain-list">
-                {recentPlans.map((plan) => (
+                {visiblePlans.map((plan) => (
                   <li key={plan.id}>
                     <span>{plan.title}</span>
                     <button className="secondary compact" onClick={() => void onOpenPlan(plan.id)}>

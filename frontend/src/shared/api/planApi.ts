@@ -1,5 +1,6 @@
 import { apiRequest } from './client'
 import type {
+  DeletePlanResult,
   ImportPlanPayload,
   ImportPrompt,
   ImportTemplate,
@@ -79,6 +80,21 @@ export function updatePlanTitle(token: string, planId: string, title: string): P
     method: 'PATCH',
     token,
     body: { title },
+  })
+}
+
+export function derivePlan(token: string, planId: string, skillId: string): Promise<Plan> {
+  return apiRequest<Plan>(`/plans/${planId}/derive`, {
+    method: 'POST',
+    token,
+    body: { skill_id: skillId },
+  })
+}
+
+export function deletePlan(token: string, planId: string): Promise<DeletePlanResult> {
+  return apiRequest<DeletePlanResult>(`/plans/${planId}`, {
+    method: 'DELETE',
+    token,
   })
 }
 

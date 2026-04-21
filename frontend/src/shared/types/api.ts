@@ -18,6 +18,9 @@ export type Plan = {
   id: string
   user_id: string
   title: string
+  parent_plan_id?: string | null
+  root_plan_id?: string | null
+  source_skill_id?: string | null
   goal: {
     target_skill_ids: string[]
     mode: LearningMode
@@ -39,6 +42,10 @@ export type PlanGraphSkill = {
 
 export type PlanGraph = {
   skills: PlanGraphSkill[]
+}
+
+export type DeletePlanResult = {
+  deleted_ids: string[]
 }
 
 export type Progress = {
