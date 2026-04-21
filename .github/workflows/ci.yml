@@ -50,8 +50,14 @@ jobs:
           
       - name: Run backend tests
         env:
-          DATABASE_URL: postgresql://postgres:testpass@localhost:5432/testdb
-        run: pytest -c backend/pytest.ci.ini
+          DATABASE_URL: postgresql+psycopg://postgres:testpass@localhost:5432/testdb
+          JWT_SECRET_KEY: ci-secret-key
+          SKILLS_JSON_PATH: backend/tests/data/skills.json
+        run: |
+          cd backend
+          alembic upgrade head
+          cd ..
+          pytest -c backend/pytest.ci.ini
       
       # Frontend
       - name: Install frontend dependencies
