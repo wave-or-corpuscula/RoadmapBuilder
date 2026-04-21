@@ -2,8 +2,8 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package*.json /app/
-RUN npm ci && npm install -g vite@latest
+COPY . .
+RUN npm install
 
 COPY . /app
 
