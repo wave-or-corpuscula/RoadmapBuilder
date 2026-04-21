@@ -1,6 +1,10 @@
 services:
   postgres:
     image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports: ["5432:5432"]
     volumes: [postgres_data:/var/lib/postgresql/data]
   
@@ -10,6 +14,13 @@ services:
 
   backend:
     build: ./backend
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      SKILLS_JSON_PATH: ${SKILLS_JSON_PATH}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      JWT_ALGORITHM: ${JWT_ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS}
     ports: ["8000:8000"]
     depends_on: [postgres, redis]
     volumes: [./backend:/app]
@@ -19,3 +30,6 @@ services:
     ports: ["5173:5173"]
     depends_on: [backend]
     volumes: [./frontend:/app]
+
+volumes:
+  postgres_data:
