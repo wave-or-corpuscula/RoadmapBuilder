@@ -116,6 +116,11 @@ class DeletePlanResponse(BaseModel):
     deleted_ids: list[str]
 
 
+class NextStepResponse(BaseModel):
+    plan_id: str
+    next_skill_id: str | None = None
+
+
 def _to_response(plan: LearningPlan) -> PlanResponse:
     return PlanResponse(
         id=plan.id or "",
@@ -148,6 +153,31 @@ def _graph_to_payload(graph: SkillGraph) -> dict:
             }
         )
     return {"skills": skills}
+
+
+def _resolve_plan_graph(plan: LearningPlan, graph_repo: PostgresGraphRepository) -> SkillGraph:
+    if plan.graph_payload is not None:
+        return SkillGraph.from_dict(plan.graph_payload)
+    return graph_repo.get().get_subgraph(plan.goal.target_skill_ids, plan.goal.mode)
+
+
+def _get_next_skill_id(plan: LearningPlan, graph: SkillGraph) -> str | None:
+    first_learning: str | None = None
+    for skill_id in plan.ordered_skill_ids:
+        status = plan.skill_statuses.get(skill_id, KnowledgeStatus.UNKNOWN)
+        if status == KnowledgeStatus.LEARNING and first_learning is None:
+            first_learning = skill_id
+        if status != KnowledgeStatus.UNKNOWN:
+            continue
+
+        prerequisites = graph.prerequisites_map.get(skill_id, set())
+        is_unlocked = all(
+            plan.skill_statuses.get(prereq, KnowledgeStatus.UNKNOWN) == KnowledgeStatus.MASTERED
+            for prereq in prerequisites
+        )
+        if is_unlocked:
+            return skill_id
+    return first_learning
 
 
 def _enrich_plan_statuses(
@@ -306,6 +336,29 @@ def list_plans(
     plans = plan_repo.list_by_user(current_user_id)
     plans.sort(key=lambda item: item.created_at, reverse=True)
     return [_to_response(plan) for plan in plans]
+
+
+@router.get("/next-steps", response_model=list[NextStepResponse])
+def list_next_steps(
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
+) -> list[NextStepResponse]:
+    plans = plan_repo.list_by_user(current_user_id)
+    plans.sort(key=lambda item: item.created_at, reverse=True)
+
+    result: list[NextStepResponse] = []
+    for plan in plans:
+        if plan.id is None:
+            continue
+        graph = _resolve_plan_graph(plan, graph_repo)
+        result.append(
+            NextStepResponse(
+                plan_id=plan.id,
+                next_skill_id=_get_next_skill_id(plan, graph),
+            )
+        )
+    return result
 
 
 @router.get("/import-template", response_model=ImportTemplateResponse)
@@ -467,11 +520,7 @@ def get_plan_graph(
     if plan is None or plan.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
 
-    if plan.graph_payload is not None:
-        return plan.graph_payload
-
-    subgraph = graph_repo.get().get_subgraph(plan.goal.target_skill_ids, plan.goal.mode)
-    return _graph_to_payload(subgraph)
+    return _graph_to_payload(_resolve_plan_graph(plan, graph_repo))
 
 
 @router.patch("/{plan_id}/rebuild", response_model=PlanResponse)
