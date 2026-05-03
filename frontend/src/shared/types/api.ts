@@ -48,6 +48,11 @@ export type DeletePlanResult = {
   deleted_ids: string[]
 }
 
+export type PlanNextStep = {
+  plan_id: string
+  next_skill_id: string | null
+}
+
 export type Progress = {
   user_id: string
   statuses: Record<string, KnowledgeStatus>

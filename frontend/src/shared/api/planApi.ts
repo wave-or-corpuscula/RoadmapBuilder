@@ -8,6 +8,7 @@ import type {
   LearningMode,
   Plan,
   PlanGraph,
+  PlanNextStep,
   Progress,
 } from '../types/api'
 
@@ -53,6 +54,10 @@ export function getPlanGraph(token: string, planId: string): Promise<PlanGraph> 
 
 export function getPlan(token: string, planId: string): Promise<Plan> {
   return apiRequest<Plan>(`/plans/${planId}`, { token })
+}
+
+export function getPlanNextStep(token: string, planId: string): Promise<PlanNextStep> {
+  return apiRequest<PlanNextStep>(`/plans/${planId}/next-step`, { token })
 }
 
 export function listPlans(token: string): Promise<Plan[]> {

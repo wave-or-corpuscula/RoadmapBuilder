@@ -11,6 +11,7 @@ import {
   derivePlan,
   getPlan,
   getPlanGraph,
+  getPlanNextStep,
   getProgress,
   importPlan,
   listPlans,
@@ -20,7 +21,7 @@ import {
 } from './shared/api/planApi'
 import { ApiError } from './shared/api/client'
 import { clearAuthState, getAuthState, setAuthState } from './store/authStore'
-import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph, Progress, User } from './shared/types/api'
+import type { ImportPlanPayload, KnowledgeStatus, Plan, PlanGraph, PlanNextStep, Progress, User } from './shared/types/api'
 
 type AppPath = '/dashboard' | '/plans/new' | '/plans/view'
 const LAST_PLAN_ID_KEY = 'arb:last_plan_id'
@@ -45,6 +46,7 @@ function App() {
   const [recentPlans, setRecentPlans] = useState<Plan[]>([])
   const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
   const [currentGraph, setCurrentGraph] = useState<PlanGraph | null>(null)
+  const [currentNextStep, setCurrentNextStep] = useState<PlanNextStep | null>(null)
   const isAuthenticated = useMemo(() => Boolean(accessToken && user), [accessToken, user])
 
   function navigate(nextPath: AppPath) {
@@ -76,9 +78,14 @@ function App() {
   }
 
   async function openExistingPlan(token: string, planId: string) {
-    const [plan, graph] = await Promise.all([getPlan(token, planId), getPlanGraph(token, planId)])
+    const [plan, graph, nextStep] = await Promise.all([
+      getPlan(token, planId),
+      getPlanGraph(token, planId),
+      getPlanNextStep(token, planId),
+    ])
     setCurrentPlan(plan)
     setCurrentGraph(graph)
+    setCurrentNextStep(nextStep)
     saveLastPlanId(plan.id)
   }
 
@@ -195,11 +202,15 @@ function App() {
       throw new Error('Not authenticated')
     }
     const created = await importPlan(accessToken, payload)
-    const graph = await getPlanGraph(accessToken, created.id)
+    const [graph, nextStep] = await Promise.all([
+      getPlanGraph(accessToken, created.id),
+      getPlanNextStep(accessToken, created.id),
+    ])
     const currentProgress = await getProgress(accessToken)
     setProgress(currentProgress)
     setCurrentPlan(created)
     setCurrentGraph(graph)
+    setCurrentNextStep(nextStep)
     saveLastPlanId(created.id)
     try {
       await refreshRecentPlans(accessToken)
@@ -214,10 +225,12 @@ function App() {
       throw new Error('Not authenticated')
     }
     const updatedPlan = await updatePlanSkillStatus(accessToken, planId, skillId, status)
+    const nextStep = await getPlanNextStep(accessToken, planId)
     const currentProgress = await getProgress(accessToken)
     setProgress(currentProgress)
     if (currentPlan && currentPlan.id === updatedPlan.id) {
       setCurrentPlan(updatedPlan)
+      setCurrentNextStep(nextStep)
     }
     return updatedPlan
   }
@@ -258,9 +271,13 @@ function App() {
       throw new Error('Not authenticated')
     }
     const derived = await derivePlan(accessToken, planId, skillId)
-    const graph = await getPlanGraph(accessToken, derived.id)
+    const [graph, nextStep] = await Promise.all([
+      getPlanGraph(accessToken, derived.id),
+      getPlanNextStep(accessToken, derived.id),
+    ])
     setCurrentPlan(derived)
     setCurrentGraph(graph)
+    setCurrentNextStep(nextStep)
     saveLastPlanId(derived.id)
     try {
       await refreshRecentPlans(accessToken)
@@ -296,6 +313,7 @@ function App() {
       } else {
         setCurrentPlan(null)
         setCurrentGraph(null)
+        setCurrentNextStep(null)
         navigate('/dashboard')
       }
     }
@@ -310,6 +328,7 @@ function App() {
     setRecentPlans([])
     setCurrentPlan(null)
     setCurrentGraph(null)
+    setCurrentNextStep(null)
     clearLastPlanId()
     navigate('/dashboard')
   }
@@ -354,6 +373,7 @@ function App() {
       <PlanWorkspacePage
         plan={currentPlan}
         graph={currentGraph}
+        nextStepSkillId={currentNextStep?.next_skill_id ?? null}
         plans={recentPlans}
         onBack={() => navigate('/dashboard')}
         onOpenPlan={handleOpenPlan}

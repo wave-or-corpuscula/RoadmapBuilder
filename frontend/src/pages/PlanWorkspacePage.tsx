@@ -6,6 +6,7 @@ import type { KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
 type Props = {
   plan: Plan
   graph: PlanGraph
+  nextStepSkillId: string | null
   plans: Plan[]
   onBack: () => void
   onOpenPlan: (planId: string) => Promise<void>
@@ -25,6 +26,7 @@ const STATUS_OPTIONS: Array<{ value: KnowledgeStatus; label: string; className: 
 export default function PlanWorkspacePage({
   plan,
   graph,
+  nextStepSkillId,
   plans,
   onBack,
   onOpenPlan,
@@ -130,6 +132,10 @@ export default function PlanWorkspacePage({
   const selectedSkill = useMemo(
     () => graph.skills.find((item) => item.id === selectedSkillId) ?? null,
     [graph.skills, selectedSkillId],
+  )
+  const nextStepSkill = useMemo(
+    () => graph.skills.find((item) => item.id === nextStepSkillId) ?? null,
+    [graph.skills, nextStepSkillId],
   )
   const isSelectedSkillRoot = selectedSkill ? selectedSkill.prerequisites.length === 0 : false
 
@@ -381,6 +387,17 @@ export default function PlanWorkspacePage({
           </div>
           {isSavingTitle ? <p className="status-text">Сохраняю название...</p> : null}
           {titleError ? <p className="error-text">{titleError}</p> : null}
+          {nextStepSkill ? (
+            <button
+              type="button"
+              className="next-step-cta"
+              onClick={() => handleSelectSkill(nextStepSkill.id)}
+            >
+              Продолжить: {nextStepSkill.title}
+            </button>
+          ) : (
+            <p className="status-text">Все шаги в этом плане уже отмечены</p>
+          )}
         </div>
         <button className="secondary" onClick={() => void handleBack()}>
           Панель управления

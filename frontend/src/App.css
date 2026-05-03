@@ -380,6 +380,26 @@
   margin: 0;
 }
 
+.next-step-cta {
+  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #9cc0ef;
+  background: linear-gradient(180deg, #f7fbff 0%, #eaf3ff 100%);
+  color: #1e426f;
+  font-weight: 600;
+  pointer-events: auto;
+}
+
+.next-step-cta:hover,
+.next-step-cta:focus-visible {
+  border-color: #7ca8e4;
+  background: linear-gradient(180deg, #ffffff 0%, #e2efff 100%);
+}
+
 .workspace-title-input {
   width: min(420px, calc(100vw - 120px));
   min-height: 36px;
