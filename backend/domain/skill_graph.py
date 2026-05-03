@@ -57,6 +57,9 @@ class SkillGraph:
                 title=raw_skill["title"],
                 description=raw_skill["description"],
                 difficulty=raw_skill["difficulty"],
+                initial_parts=list(raw_skill.get("initial_parts", [])),
+                parent_skill_id=raw_skill.get("parent_skill_id"),
+                is_decomposed=bool(raw_skill.get("is_decomposed", False)),
             )
 
             graph.skills[skill_id] = skill
