@@ -12,9 +12,10 @@ from backend.api.dependencies import (
     get_plan_repo,
     get_plan_service,
 )
-from backend.domain.enums import KnowledgeStatus, LearningMode
+from backend.domain.enums import KnowledgeStatus, LearningMode, StepStatus
 from backend.domain.learning_goal import LearningGoal
 from backend.domain.learning_plan import LearningPlan
+from backend.domain.learning_step import LearningStep
 from backend.domain.skill_graph import SkillGraph
 from backend.domain.user_knowledge import UserKnowledge
 from backend.repositories.graph_repository import PostgresGraphRepository
@@ -38,6 +39,15 @@ class GoalResponse(BaseModel):
     mode: LearningMode
 
 
+class StepResponse(BaseModel):
+    id: str
+    skill_id: str
+    title: str
+    type: str
+    estimate_min: int
+    acceptance_criteria: str
+
+
 class PlanResponse(BaseModel):
     id: str
     user_id: str
@@ -48,7 +58,9 @@ class PlanResponse(BaseModel):
     fingerprint: str | None = None
     goal: GoalResponse
     ordered_skill_ids: list[str]
+    steps: list["StepResponse"]
     skill_statuses: dict[str, KnowledgeStatus]
+    step_statuses: dict[str, StepStatus]
     skill_notes: dict[str, str]
     created_at: datetime
     is_active: bool
@@ -118,11 +130,13 @@ class DeletePlanResponse(BaseModel):
 
 class NextStepResponse(BaseModel):
     plan_id: str
+    next_step_id: str | None = None
     next_skill_id: str | None = None
 
 
 class PlanNextStepResponse(BaseModel):
     plan_id: str
+    next_step_id: str | None = None
     next_skill_id: str | None = None
 
 
@@ -137,7 +151,19 @@ def _to_response(plan: LearningPlan) -> PlanResponse:
         fingerprint=plan.fingerprint,
         goal=GoalResponse(target_skill_ids=plan.goal.target_skill_ids, mode=plan.goal.mode),
         ordered_skill_ids=plan.ordered_skill_ids,
+        steps=[
+            StepResponse(
+                id=item.id,
+                skill_id=item.skill_id,
+                title=item.title,
+                type=item.type,
+                estimate_min=item.estimate_min,
+                acceptance_criteria=item.acceptance_criteria,
+            )
+            for item in plan.steps
+        ],
         skill_statuses=plan.skill_statuses,
+        step_statuses=plan.step_statuses,
         skill_notes=plan.skill_notes,
         created_at=plan.created_at,
         is_active=plan.is_active,
@@ -166,23 +192,51 @@ def _resolve_plan_graph(plan: LearningPlan, graph_repo: PostgresGraphRepository)
     return graph_repo.get().get_subgraph(plan.goal.target_skill_ids, plan.goal.mode)
 
 
-def _get_next_skill_id(plan: LearningPlan, graph: SkillGraph) -> str | None:
-    first_learning: str | None = None
-    for skill_id in plan.ordered_skill_ids:
-        status = plan.skill_statuses.get(skill_id, KnowledgeStatus.UNKNOWN)
-        if status == KnowledgeStatus.LEARNING and first_learning is None:
-            first_learning = skill_id
-        if status != KnowledgeStatus.UNKNOWN:
+def _get_next_step(plan: LearningPlan, graph: SkillGraph) -> LearningStep | None:
+    step_by_id = {item.id: item for item in plan.steps}
+    first_learning: LearningStep | None = None
+    for step in plan.steps:
+        step_status = plan.step_statuses.get(step.id, StepStatus.NOT_STARTED)
+        if step_status == StepStatus.LEARNING and first_learning is None:
+            first_learning = step
+        if step_status != StepStatus.NOT_STARTED:
             continue
 
-        prerequisites = graph.prerequisites_map.get(skill_id, set())
+        prerequisites = graph.prerequisites_map.get(step.skill_id, set())
         is_unlocked = all(
             plan.skill_statuses.get(prereq, KnowledgeStatus.UNKNOWN) == KnowledgeStatus.MASTERED
             for prereq in prerequisites
         )
         if is_unlocked:
-            return skill_id
+            for step_type in ("theory", "practice", "checkpoint"):
+                candidate_id = f"{step.skill_id}:{step_type}"
+                candidate_status = plan.step_statuses.get(candidate_id, StepStatus.NOT_STARTED)
+                if candidate_status == StepStatus.NOT_STARTED and candidate_id in step_by_id:
+                    return step_by_id[candidate_id]
+                if candidate_status == StepStatus.LEARNING and candidate_id in step_by_id:
+                    return step_by_id[candidate_id]
+            return step
     return first_learning
+
+
+def _apply_skill_status_to_steps(plan: LearningPlan, skill_id: str, status: KnowledgeStatus) -> LearningPlan:
+    updated = plan
+    skill_steps = [item for item in plan.steps if item.skill_id == skill_id]
+    if not skill_steps:
+        return updated
+    if status == KnowledgeStatus.MASTERED:
+        for step in skill_steps:
+            updated = updated.with_step_status(step.id, StepStatus.COMPLETED)
+        return updated
+    if status == KnowledgeStatus.UNKNOWN:
+        for step in skill_steps:
+            updated = updated.with_step_status(step.id, StepStatus.NOT_STARTED)
+        return updated
+
+    for index, step in enumerate(skill_steps):
+        target_status = StepStatus.LEARNING if index == 0 else StepStatus.NOT_STARTED
+        updated = updated.with_step_status(step.id, target_status)
+    return updated
 
 
 def _enrich_plan_statuses(
@@ -357,10 +411,12 @@ def list_next_steps(
         if plan.id is None:
             continue
         graph = _resolve_plan_graph(plan, graph_repo)
+        next_step = _get_next_step(plan, graph)
         result.append(
             NextStepResponse(
                 plan_id=plan.id,
-                next_skill_id=_get_next_skill_id(plan, graph),
+                next_step_id=next_step.id if next_step is not None else None,
+                next_skill_id=next_step.skill_id if next_step is not None else None,
             )
         )
     return result
@@ -499,9 +555,11 @@ def get_plan_next_step(
     if plan is None or plan.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     graph = _resolve_plan_graph(plan, graph_repo)
+    next_step = _get_next_step(plan, graph)
     return PlanNextStepResponse(
         plan_id=plan.id or plan_id,
-        next_skill_id=_get_next_skill_id(plan, graph),
+        next_step_id=next_step.id if next_step is not None else None,
+        next_skill_id=next_step.skill_id if next_step is not None else None,
     )
 
 
@@ -670,6 +728,10 @@ def update_plan_skill_status(
         skill_id=skill_id,
         status=payload.status,
     )
+    for item in plan_repo.list_by_user(plan.user_id):
+        synced = _apply_skill_status_to_steps(item, skill_id, payload.status)
+        if synced.id is not None:
+            plan_repo.save(synced)
     current = plan_repo.get(plan_id)
     if current is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")

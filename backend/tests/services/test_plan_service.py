@@ -84,6 +84,10 @@ def test_build_plan_single_goal_chain(plan_service, sample_graph):
         "async_advanced",
     ]
     assert plan.user_id == "u1"
+    assert len(plan.steps) == 12
+    assert plan.steps[0].id == "python_basics:theory"
+    assert plan.steps[1].id == "python_basics:practice"
+    assert plan.steps[2].id == "python_basics:checkpoint"
 
 
 def test_build_plan_branching_goal(plan_service, sample_graph):
