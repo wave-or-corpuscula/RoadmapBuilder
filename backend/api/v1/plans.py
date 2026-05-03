@@ -121,6 +121,11 @@ class NextStepResponse(BaseModel):
     next_skill_id: str | None = None
 
 
+class PlanNextStepResponse(BaseModel):
+    plan_id: str
+    next_skill_id: str | None = None
+
+
 def _to_response(plan: LearningPlan) -> PlanResponse:
     return PlanResponse(
         id=plan.id or "",
@@ -481,6 +486,23 @@ def get_plan(
     if plan is None or plan.user_id != current_user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
     return _to_response(plan)
+
+
+@router.get("/{plan_id}/next-step", response_model=PlanNextStepResponse)
+def get_plan_next_step(
+    plan_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
+    graph_repo: PostgresGraphRepository = Depends(get_graph_repo),
+) -> PlanNextStepResponse:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+    graph = _resolve_plan_graph(plan, graph_repo)
+    return PlanNextStepResponse(
+        plan_id=plan.id or plan_id,
+        next_skill_id=_get_next_skill_id(plan, graph),
+    )
 
 
 @router.delete("/{plan_id}", response_model=DeletePlanResponse)

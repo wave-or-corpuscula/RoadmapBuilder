@@ -670,3 +670,40 @@ def test_list_next_steps_returns_first_learning_when_no_unknown_available():
     assert steps.status_code == 200
     by_plan = {item["plan_id"]: item["next_skill_id"] for item in steps.json()}
     assert by_plan[plan_id] == "a"
+
+
+def test_get_plan_next_step_by_plan_id():
+    raw_graph = {
+        "skills": [
+            {"id": "a", "title": "", "description": "", "difficulty": 1, "prerequisites": []},
+            {"id": "b", "title": "", "description": "", "difficulty": 1, "prerequisites": ["a"]},
+            {"id": "goal", "title": "", "description": "", "difficulty": 1, "prerequisites": ["b"]},
+        ]
+    }
+    app = create_app(graph=SkillGraph.from_dict(raw_graph))
+    client = TestClient(app)
+    headers, _ = _auth_context(client)
+
+    created = client.post(
+        "/api/v1/plans",
+        json={"target_skill_ids": ["goal"], "mode": "surface"},
+        headers=headers,
+    )
+    assert created.status_code == 200
+    plan_id = created.json()["id"]
+
+    initial = client.get(f"/api/v1/plans/{plan_id}/next-step", headers=headers)
+    assert initial.status_code == 200
+    assert initial.json()["plan_id"] == plan_id
+    assert initial.json()["next_skill_id"] == "a"
+
+    mark_a = client.patch(
+        f"/api/v1/plans/{plan_id}/skills/a/status",
+        json={"status": "mastered"},
+        headers=headers,
+    )
+    assert mark_a.status_code == 200
+
+    second = client.get(f"/api/v1/plans/{plan_id}/next-step", headers=headers)
+    assert second.status_code == 200
+    assert second.json()["next_skill_id"] == "b"
