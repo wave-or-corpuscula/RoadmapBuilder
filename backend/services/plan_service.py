@@ -1,4 +1,5 @@
 import heapq
+import re
 
 from backend.domain.learning_goal import LearningGoal
 from backend.domain.learning_plan import LearningPlan
@@ -37,7 +38,7 @@ class PlanService:
             )
 
         ordered = self._topological_sort_by_priority(graph=subgraph, subset=required)
-        steps = self._build_steps_for_skills(ordered)
+        steps = self._build_steps_for_skills(subgraph, ordered)
         return LearningPlan(
             id=None,
             user_id=knowledge.user_id,
@@ -46,37 +47,69 @@ class PlanService:
             steps=steps,
         )
 
-    def _build_steps_for_skills(self, ordered_skill_ids: list[str]) -> list[LearningStep]:
+    def _extract_actions_from_description(self, title: str, description: str) -> list[str]:
+        source = (description or "").strip()
+        if not source:
+            return [f"Освоить тему: {title}"]
+
+        lines = [line.strip(" -*\t") for line in source.splitlines() if line.strip()]
+        chunks: list[str] = []
+        for line in lines:
+            parts = [part.strip() for part in re.split(r"[.;]", line) if part.strip()]
+            chunks.extend(parts)
+
+        cleaned = []
+        seen = set()
+        for chunk in chunks:
+            normalized = chunk[0].upper() + chunk[1:] if len(chunk) > 1 else chunk.upper()
+            if normalized in seen:
+                continue
+            seen.add(normalized)
+            cleaned.append(normalized)
+            if len(cleaned) == 3:
+                break
+
+        if cleaned:
+            return cleaned
+        return [f"Освоить тему: {title}"]
+
+    def _build_steps_for_skills(self, graph: SkillGraph, ordered_skill_ids: list[str]) -> list[LearningStep]:
         steps: list[LearningStep] = []
         for skill_id in ordered_skill_ids:
+            skill = graph.skills[skill_id]
+            actions = self._extract_actions_from_description(skill.title, skill.description)
+            theory_action = actions[0]
+            practice_action = actions[1] if len(actions) > 1 else actions[0]
+            checkpoint_action = actions[2] if len(actions) > 2 else actions[-1]
+
             steps.append(
                 LearningStep(
                     id=f"{skill_id}:theory",
                     skill_id=skill_id,
-                    title=f"Изучи теорию: {skill_id}",
+                    title=f"Разобрать: {theory_action}",
                     type="theory",
                     estimate_min=30,
-                    acceptance_criteria="Кратко объясняет ключевые понятия своими словами.",
+                    acceptance_criteria=f"Пользователь объясняет пункт: {theory_action}",
                 )
             )
             steps.append(
                 LearningStep(
                     id=f"{skill_id}:practice",
                     skill_id=skill_id,
-                    title=f"Практика: {skill_id}",
+                    title=f"Сделать: {practice_action}",
                     type="practice",
                     estimate_min=45,
-                    acceptance_criteria="Выполнено практическое задание по теме без критических ошибок.",
+                    acceptance_criteria=f"Практически выполнен пункт: {practice_action}",
                 )
             )
             steps.append(
                 LearningStep(
                     id=f"{skill_id}:checkpoint",
                     skill_id=skill_id,
-                    title=f"Проверка: {skill_id}",
+                    title=f"Проверка: {checkpoint_action}",
                     type="checkpoint",
                     estimate_min=20,
-                    acceptance_criteria="Результат проверен и подтвержден критериями готовности.",
+                    acceptance_criteria=f"Подтвержден результат по пункту: {checkpoint_action}",
                 )
             )
         return steps

@@ -24,6 +24,8 @@ class SkillDTO:
     description: str
     difficulty: int
     prerequisites: list[str]
+    parent_skill_id: str | None
+    is_decomposed: bool
 
 
 class GraphService:
@@ -43,6 +45,8 @@ class GraphService:
         description: str,
         difficulty: int,
         prerequisites: list[str],
+        parent_skill_id: str | None = None,
+        is_decomposed: bool = False,
     ) -> SkillDTO:
         graph = repo.get()
         if skill_id in graph.skills:
@@ -50,7 +54,14 @@ class GraphService:
 
         try:
             graph.add_skill(
-                Skill(id=skill_id, title=title, description=description, difficulty=difficulty),
+                Skill(
+                    id=skill_id,
+                    title=title,
+                    description=description,
+                    difficulty=difficulty,
+                    parent_skill_id=parent_skill_id,
+                    is_decomposed=is_decomposed,
+                ),
                 prerequisites=prerequisites,
             )
         except ValueError as exc:
@@ -67,6 +78,8 @@ class GraphService:
         description: str | None = None,
         difficulty: int | None = None,
         prerequisites: list[str] | None = None,
+        parent_skill_id: str | None = None,
+        is_decomposed: bool | None = None,
     ) -> SkillDTO:
         graph = repo.get()
         if skill_id not in graph.skills:
@@ -84,6 +97,10 @@ class GraphService:
             target["difficulty"] = difficulty
         if prerequisites is not None:
             target["prerequisites"] = prerequisites
+        if parent_skill_id is not None:
+            target["parent_skill_id"] = parent_skill_id
+        if is_decomposed is not None:
+            target["is_decomposed"] = is_decomposed
 
         try:
             rebuilt = SkillGraph.from_dict(raw)
@@ -131,6 +148,8 @@ class GraphService:
                     "description": skill.description,
                     "difficulty": skill.difficulty,
                     "prerequisites": sorted(graph.prerequisites_map[skill_id]),
+                    "parent_skill_id": skill.parent_skill_id,
+                    "is_decomposed": skill.is_decomposed,
                 }
             )
         return {"skills": skills}
@@ -143,4 +162,6 @@ class GraphService:
             description=skill.description,
             difficulty=skill.difficulty,
             prerequisites=sorted(graph.prerequisites_map[skill_id]),
+            parent_skill_id=skill.parent_skill_id,
+            is_decomposed=skill.is_decomposed,
         )
