@@ -50,9 +50,7 @@ class LearningPlanModel(Base):
     goal_target_skill_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     goal_mode: Mapped[str] = mapped_column(String(32), nullable=False)
     ordered_skill_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
-    plan_steps: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
     skill_statuses: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
-    step_statuses: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
     skill_notes: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
     graph_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(

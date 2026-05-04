@@ -13,7 +13,3 @@ class LearningMode(Enum):
     DEEP = "deep"
 
 
-class StepStatus(Enum):
-    NOT_STARTED = "not_started"
-    LEARNING = "learning"
-    COMPLETED = "completed"
