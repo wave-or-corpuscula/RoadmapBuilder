@@ -3,6 +3,7 @@ from uuid import uuid4
 from backend.domain.learning_plan import LearningPlan
 from backend.domain.learning_goal import LearningGoal
 from backend.domain.enums import KnowledgeStatus, LearningMode
+from backend.domain.learning_step import LearningStep
 from backend.core.db import SessionLocal
 from backend.db_models.models import LearningPlanModel
 
@@ -11,6 +12,10 @@ class PostgresPlanRepository:
     def _to_domain(self, row: LearningPlanModel) -> LearningPlan:
         statuses_raw = row.skill_statuses or {}
         statuses = {skill_id: KnowledgeStatus(value) for skill_id, value in statuses_raw.items()}
+
+        steps_raw = row.plan_steps or []
+        steps = [LearningStep.from_dict(item) for item in steps_raw]
+
         return LearningPlan(
             id=row.id,
             user_id=row.user_id,
@@ -26,6 +31,7 @@ class PostgresPlanRepository:
             fingerprint=row.fingerprint,
             skill_statuses=statuses,
             skill_notes=dict(row.skill_notes or {}),
+            steps=steps,
             graph_payload=row.graph_payload,
             created_at=row.created_at,
             is_active=row.is_active,
@@ -38,6 +44,8 @@ class PostgresPlanRepository:
         with SessionLocal() as session:
             row = session.get(LearningPlanModel, plan.id)
             serialized_statuses = {skill_id: status.value for skill_id, status in plan.skill_statuses.items()}
+            serialized_steps = [step.to_dict() for step in plan.steps]
+
             if row is None:
                 row = LearningPlanModel(
                     id=plan.id,
@@ -52,6 +60,7 @@ class PostgresPlanRepository:
                     ordered_skill_ids=list(plan.ordered_skill_ids),
                     skill_statuses=serialized_statuses,
                     skill_notes=dict(plan.skill_notes),
+                    plan_steps=serialized_steps,
                     graph_payload=plan.graph_payload,
                     created_at=plan.created_at,
                     is_active=plan.is_active,
@@ -69,6 +78,7 @@ class PostgresPlanRepository:
                 row.ordered_skill_ids = list(plan.ordered_skill_ids)
                 row.skill_statuses = serialized_statuses
                 row.skill_notes = dict(plan.skill_notes)
+                row.plan_steps = serialized_steps
                 row.graph_payload = plan.graph_payload
                 row.created_at = plan.created_at
                 row.is_active = plan.is_active
