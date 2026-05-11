@@ -433,32 +433,74 @@
 .workspace-body {
   height: 100%;
   width: 100%;
+  display: flex;
 }
 
-.workspace-sidebar {
-  position: absolute;
-  z-index: 11;
-  top: 68px;
-  right: 14px;
-  bottom: 14px;
-  width: min(360px, calc(100vw - 28px));
-  overflow: auto;
+.workspace-body.with-panel {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-body.with-panel::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 99;
+}
+
+/* Removed duplicate workspace-sidebar rule */
+
+/* Steps sidebar - separate from detail panel */
+/* Steps sidebar - separate from detail panel */
+.steps-sidebar {
+  display: none;
+}
+
+.steps-sidebar h3 {
+  margin: 0 0 12px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #223a5e;
+}
+
+/* Loading/Error */
+.skill-panel-loading,
+.skill-panel-error {
+  padding: 24px;
+  text-align: center;
+}
+
+.skill-panel-error {
+  color: #dc2626;
+}
+
+/* Detail panel - content only (steps panel is now separate) */
+.skill-detail-container {
+  display: block;
+}
+
+.skill-steps-sidebar {
+  display: none;
+}
+
+.skill-detail-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .workspace-main {
   height: 100%;
   width: 100%;
   background: #f6f9ff;
+  margin-left: 0;
 }
 
 .workspace-sidebar .card {
-  margin: 0;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(220, 228, 242, 0.9);
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
+  position: relative;
+  padding: 24px 28px;
+  gap: 24px;
 }
 
 .status-switcher {
@@ -962,10 +1004,6 @@ button.compact {
     align-items: stretch;
   }
 
-  .workspace-body.with-panel {
-    grid-template-columns: 1fr;
-  }
-
   .import-grid {
     grid-template-columns: 1fr;
   }
@@ -992,4 +1030,336 @@ button.compact {
     width: calc(100vw - 24px);
     top: 12px;
   }
+}
+
+/* Sidebar overlay */
+/* Sidebar overlay */
+/* .workspace-body.with-panel::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 99;
+} */
+
+/* Sidebar close button */
+.sidebar-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+  background: transparent;
+  border: none;
+  color: #6b7a8f;
+  cursor: pointer;
+  border-radius: 6px;
+  z-index: 101;
+}
+
+.sidebar-close:hover {
+  background: #edf1f8;
+  color: #334763;
+}
+
+/* Skill panel container for side-by-side layout */
+.skill-panel-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 100;
+  width: 100%;
+  max-width: 1200px;
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  padding: 20px;
+  background: transparent;
+}
+
+.skill-panel-content {
+  display: flex;
+  gap: 20px;
+  width: 100%;
+  background: #ffffff00;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(19, 37, 69, 0.1);
+  padding: 20px;
+}
+
+.steps-sidebar {
+  flex: 0 0 300px;
+  background: #ffffff;
+  border: 1px solid #dce4f2;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 14px 34px rgba(19, 37, 69, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.workspace-sidebar {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: auto;
+  background: #ffffff;
+  border: 1px solid #dce4f2;
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(19, 37, 69, 0.1);
+  z-index: 100;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: fit-content;
+  padding: 24px 28px;
+  gap: 24px;
+}
+
+.skill-chat-section {
+  padding: 16px 0;
+  border-top: 1px solid #e8ecf2;
+  border-bottom: 1px solid #e8ecf2;
+}
+
+.skill-chat-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334763;
+}
+
+.skill-chat-messages {
+  min-height: 80px;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.chat-placeholder {
+  color: #8ea0bf;
+  font-style: italic;
+  margin: 0;
+}
+
+/* Skill Panel - Tree Only (for sidebar) */
+.skill-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skill-panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6b7a8f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.step-tree {
+  display: flex;
+  flex-direction: column;
+}
+
+.step-tree-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.step-tree-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.15s;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.step-tree-row:hover {
+  background: #f0f4f8;
+}
+
+.step-tree-row.selected {
+  background: #e0eafc;
+}
+
+.step-expand-btn {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #6b7a8f;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.step-expand-placeholder {
+  width: 20px;
+  height: 20px;
+}
+
+.step-title-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #334763;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-align: left;
+  padding: 2px 0;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.step-title-btn span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-title-btn:hover {
+  background: transparent;
+}
+
+.step-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.step-split-btn {
+  margin-left: auto;
+  padding: 4px 8px;
+  font-size: 0.75rem;
+  background: #f0f4f8;
+  border: 1px solid #dce1ea;
+  border-radius: 4px;
+  color: #6b7a8f;
+  cursor: pointer;
+}
+
+.step-split-btn:hover:not(:disabled) {
+  background: #e0eafc;
+}
+
+.step-split-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Step Detail Panel */
+.skill-panel-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.skill-panel-detail h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #334763;
+}
+
+.skill-panel-detail .no-selection {
+  color: #8ea0bf;
+  font-style: italic;
+}
+
+.step-chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.step-chat-messages {
+  min-height: 120px;
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.check-knowledge-btn {
+  padding: 10px 16px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.check-knowledge-btn:hover {
+  background: #4338ca;
+}
+
+.step-status-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.step-status-label {
+  font-size: 0.85rem;
+  color: #6b7a8f;
+}
+
+.step-status-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid #e0eafc;
+  background: #f8fafc;
+  color: #6b7a8f;
+  font-size: 0.8rem;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.step-status-btn.active {
+  opacity: 1;
+}
+
+.step-status-btn.active.unknown {
+  border-color: #8ea0bf;
+  background: #edf1f8;
+}
+
+.step-status-btn.active.learning {
+  border-color: #d49a29;
+  background: #fff1d9;
+}
+
+.step-status-btn.active.mastered {
+  border-color: #22c55e;
+  background: #dff5e6;
+}
+
+/* Loading/Error */
+.skill-panel-loading,
+.skill-panel-error {
+  padding: 24px;
+  text-align: center;
+}
+
+.skill-panel-error {
+  color: #dc2626;
 }
