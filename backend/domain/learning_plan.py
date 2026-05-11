@@ -3,6 +3,7 @@ from datetime import datetime, UTC
 
 from backend.domain.enums import KnowledgeStatus
 from backend.domain.learning_goal import LearningGoal
+from backend.domain.learning_step import LearningStep
 from backend.domain.user_knowledge import UserKnowledge
 
 
@@ -19,6 +20,7 @@ class LearningPlan:
     fingerprint: str | None = None
     skill_statuses: dict[str, KnowledgeStatus] = field(default_factory=dict)
     skill_notes: dict[str, str] = field(default_factory=dict)
+    steps: list[LearningStep] = field(default_factory=list)
     graph_payload: dict | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     is_active: bool = True
@@ -39,6 +41,18 @@ class LearningPlan:
         if skill_id not in self.skill_statuses:
             raise ValueError(f"Skill is not in plan: {skill_id}")
         return self.skill_statuses[skill_id]
+
+    def get_skill_steps(self, skill_id: str) -> list[LearningStep]:
+        return [s for s in self.steps if s.skill_id == skill_id]
+
+    def get_step_by_id(self, step_id: str) -> LearningStep | None:
+        for step in self.steps:
+            if step.id == step_id:
+                return step
+            for substep in step.substeps:
+                if substep.id == step_id:
+                    return substep
+        return None
 
     def with_skill_status(self, skill_id: str, status: KnowledgeStatus) -> "LearningPlan":
         graph_skill_ids = set()
@@ -62,6 +76,7 @@ class LearningPlan:
             fingerprint=self.fingerprint,
             skill_statuses=updated,
             skill_notes=dict(self.skill_notes),
+            steps=list(self.steps),
             graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
@@ -89,15 +104,76 @@ class LearningPlan:
             fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=updated_notes,
+            steps=list(self.steps),
             graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
         )
 
+    def with_steps(self, steps: list[LearningStep]) -> "LearningPlan":
+        return LearningPlan(
+            id=self.id,
+            user_id=self.user_id,
+            goal=self.goal,
+            ordered_skill_ids=self.ordered_skill_ids,
+            title=self.title,
+            parent_plan_id=self.parent_plan_id,
+            root_plan_id=self.root_plan_id,
+            source_skill_id=self.source_skill_id,
+            fingerprint=self.fingerprint,
+            skill_statuses=dict(self.skill_statuses),
+            skill_notes=dict(self.skill_notes),
+            steps=list(steps),
+            graph_payload=self.graph_payload,
+            created_at=self.created_at,
+            is_active=self.is_active,
+        )
+
+    def with_step_status(self, step_id: str, status) -> "LearningPlan":
+        def update_step(step: LearningStep) -> LearningStep:
+            if step.id == step_id:
+                return step.with_status(status)
+            if step.substeps:
+                return step.with_substeps([update_step(s) for s in step.substeps])
+            return step
+
+        updated_steps = [update_step(s) for s in self.steps]
+        return self.with_steps(updated_steps)
+
+    def add_skill_steps(self, skill_id: str, new_steps: list[LearningStep]) -> "LearningPlan":
+        existing = [s for s in self.steps if s.skill_id != skill_id]
+        return self.with_steps(existing + list(new_steps))
+
+    def split_step(self, step_id: str, substeps: list[LearningStep]) -> "LearningPlan":
+        def update_step(step: LearningStep) -> LearningStep:
+            if step.id == step_id:
+                if step.is_split:
+                    raise ValueError(f"Step {step_id} is already split")
+                return step.with_substeps(substeps)
+            if step.substeps:
+                return step.with_substeps([update_step(s) for s in step.substeps])
+            return step
+
+        updated_steps = [update_step(s) for s in self.steps]
+        return self.with_steps(updated_steps)
+
     def next_unmastered(self, knowledge: UserKnowledge) -> str | None:
         for skill_id in self.ordered_skill_ids:
             if not knowledge.is_mastered(skill_id):
                 return skill_id
+        return None
+
+    def next_unstarted_step(self, skill_id: str | None = None) -> LearningStep | None:
+        candidates = self.steps
+        if skill_id:
+            candidates = [s for s in self.steps if s.skill_id == skill_id]
+
+        for step in candidates:
+            if step.status == KnowledgeStatus.UNKNOWN:
+                return step
+            for substep in step.substeps:
+                if substep.status == KnowledgeStatus.UNKNOWN:
+                    return substep
         return None
 
     def with_id(self, plan_id: str) -> "LearningPlan":
@@ -113,6 +189,7 @@ class LearningPlan:
             fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
+            steps=list(self.steps),
             graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
@@ -131,6 +208,7 @@ class LearningPlan:
             fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
+            steps=list(self.steps),
             graph_payload=graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
@@ -150,6 +228,7 @@ class LearningPlan:
             fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
+            steps=list(self.steps),
             graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
@@ -168,6 +247,7 @@ class LearningPlan:
             fingerprint=fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
+            steps=list(self.steps),
             graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
@@ -186,6 +266,7 @@ class LearningPlan:
             fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(skill_notes),
+            steps=list(self.steps),
             graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
@@ -210,6 +291,7 @@ class LearningPlan:
             fingerprint=self.fingerprint,
             skill_statuses=dict(self.skill_statuses),
             skill_notes=dict(self.skill_notes),
+            steps=list(self.steps),
             graph_payload=self.graph_payload,
             created_at=self.created_at,
             is_active=self.is_active,
