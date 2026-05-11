@@ -18,6 +18,7 @@ import {
   updatePlanSkillNote,
   updatePlanSkillStatus,
   updatePlanTitle,
+  updateStepStatus,
 } from './shared/api/planApi'
 import { ApiError } from './shared/api/client'
 import { clearAuthState, getAuthState, setAuthState } from './store/authStore'
@@ -266,6 +267,18 @@ function App() {
     return updatedPlan
   }
 
+  async function handleUpdateStepStatus(planId: string, stepId: string, status: KnowledgeStatus): Promise<void> {
+    if (!accessToken) {
+      throw new Error('Not authenticated')
+    }
+    await updateStepStatus(accessToken, planId, stepId, status)
+    // Optionally refresh the plan to get updated steps
+    if (currentPlan && currentPlan.id === planId) {
+      const updated = await getPlan(accessToken, planId)
+      setCurrentPlan(updated)
+    }
+  }
+
   async function handleCreateDerivedPlan(planId: string, skillId: string): Promise<Plan> {
     if (!accessToken) {
       throw new Error('Not authenticated')
@@ -382,6 +395,8 @@ function App() {
         onUpdatePlanTitle={handleUpdatePlanTitle}
         onUpdatePlanSkillStatus={handleUpdatePlanSkillStatus}
         onUpdatePlanSkillNote={handleUpdatePlanSkillNote}
+        onUpdateStepStatus={handleUpdateStepStatus}
+        token={accessToken ?? ''}
       />
     )
   }
