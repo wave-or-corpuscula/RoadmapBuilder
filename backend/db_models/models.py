@@ -52,6 +52,7 @@ class LearningPlanModel(Base):
     ordered_skill_ids: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
     skill_statuses: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
     skill_notes: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False, default=dict)
+    plan_steps: Mapped[list[dict]] = mapped_column(JSON, nullable=False, default=list)
     graph_payload: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
