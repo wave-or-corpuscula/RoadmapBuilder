@@ -2,6 +2,16 @@ export type LearningMode = 'surface' | 'balanced' | 'deep'
 
 export type KnowledgeStatus = 'unknown' | 'learning' | 'mastered'
 
+export type LearningStep = {
+  id: string
+  skill_id: string
+  title: string
+  status: KnowledgeStatus
+  parent_step_id: string | null
+  substeps: LearningStep[]
+  is_split: boolean
+}
+
 export type AuthTokens = {
   access_token: string
   refresh_token: string
