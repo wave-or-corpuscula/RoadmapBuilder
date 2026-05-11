@@ -15,6 +15,7 @@ from backend.api.dependencies import (
 from backend.domain.enums import KnowledgeStatus, LearningMode
 from backend.domain.learning_goal import LearningGoal
 from backend.domain.learning_plan import LearningPlan
+from backend.domain.learning_step import LearningStep
 from backend.domain.skill_graph import SkillGraph
 from backend.domain.user_knowledge import UserKnowledge
 from backend.repositories.graph_repository import PostgresGraphRepository
@@ -82,6 +83,25 @@ class ImportSkillItem(BaseModel):
     description: str = ""
     difficulty: int = Field(..., ge=1, le=10)
     prerequisites: list[str] = Field(default_factory=list)
+    initial_parts: list[str] = Field(default_factory=list)
+
+
+class LearningStepResponse(BaseModel):
+    id: str
+    skill_id: str
+    title: str
+    status: KnowledgeStatus
+    parent_step_id: str | None = None
+    substeps: list["LearningStepResponse"] = []
+    is_split: bool = False
+
+
+class UpdateStepStatusRequest(BaseModel):
+    status: KnowledgeStatus
+
+
+class SplitStepRequest(BaseModel):
+    substeps: list[str] = Field(..., min_length=2, max_length=5)
 
 
 class ImportPlanRequest(BaseModel):
@@ -157,7 +177,7 @@ def _graph_to_payload(graph: SkillGraph) -> dict:
                 "description": skill.description,
                 "difficulty": skill.difficulty,
                 "prerequisites": sorted(graph.prerequisites_map[skill_id]),
-            }
+                "initial_parts": ["Placeholder for AI generation"]}
         )
     return {"skills": skills}
 
@@ -251,6 +271,7 @@ def _build_import_prompt(topic: str) -> str:
         '   - "description": string\n'
         '   - "difficulty": integer от 1 до 10\n'
         '   - "prerequisites": array[string] (id навыков-предпосылок)\n'
+        '   - "initial_parts": array[string] (2-5 конкретных подтем/действий для изучения, например: ["Основы синтаксиса", "Переменные и типы", "Операторы"])\n'
         "4) Граф должен быть ацикличным.\n"
         "5) Все id из prerequisites должны существовать в skills.\n"
         "6) target_skill_ids должны существовать в skills и соответствовать конечной цели обучения.\n"
@@ -263,6 +284,17 @@ def _build_import_prompt(topic: str) -> str:
         "- нет циклов;\n"
         "- target_skill_ids не пустой.\n\n"
         "Ответ: только JSON объект."
+    )
+
+
+def _build_split_step_prompt(step: LearningStep, skill_title: str, context: str = "") -> str:
+    return (
+        f"Разбей шаг '{step.title}' (навык: {skill_title}) на 2-5 подшагов.\n\n"
+        f"{context}\n\n"
+        "Верни JSON массив строк с названиями подшагов.\n"
+        "Каждый подшаг — конкретное действие или подтема.\n"
+        "Пример: [\"Определение функции\", \"Параметры и аргументы\", \"Возвращаемое значение\"]\n\n"
+        "Ответ: только JSON массив."
     )
 
 
@@ -441,6 +473,23 @@ def import_plan(
     knowledge = UserKnowledge(user_id=current_user_id, statuses=statuses)
 
     plan = plan_service.build_plan(graph=imported_graph, goal=goal, knowledge=knowledge)
+
+    # Create LearningSteps from initial_parts
+    all_steps = []
+    for skill_id in plan.ordered_skill_ids:
+        skill = imported_graph.skills.get(skill_id)
+        if skill and skill.initial_parts:
+            for i, part_title in enumerate(skill.initial_parts):
+                step = LearningStep(
+                    id=f"{skill_id}_step_{i + 1}",
+                    skill_id=skill_id,
+                    title=part_title,
+                    status=KnowledgeStatus.UNKNOWN,
+                )
+                all_steps.append(step)
+    if all_steps:
+        plan = plan.with_steps(all_steps)
+
     if payload.title is not None:
         plan = plan.with_title(payload.title)
     elif existing is not None:
@@ -703,3 +752,94 @@ def update_plan_skill_note(
 
     updated = plan_repo.save(updated)
     return _to_response(updated)
+
+
+@router.get("/{plan_id}/skills/{skill_id}/steps", response_model=list[LearningStepResponse])
+def get_skill_steps(
+    plan_id: str,
+    skill_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
+) -> list[LearningStepResponse]:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    if skill_id not in plan.ordered_skill_ids:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Skill not in plan")
+
+    steps = plan.get_skill_steps(skill_id)
+    return [_step_to_response(s) for s in steps]
+
+
+@router.patch("/{plan_id}/steps/{step_id}/status", response_model=PlanResponse)
+def update_step_status(
+    plan_id: str,
+    step_id: str,
+    payload: UpdateStepStatusRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
+) -> PlanResponse:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    step = plan.get_step_by_id(step_id)
+    if step is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Step not found")
+
+    updated = plan.with_step_status(step_id, payload.status)
+    updated = plan_repo.save(updated)
+    return _to_response(updated)
+
+
+@router.post("/{plan_id}/steps/{step_id}/split", response_model=PlanResponse)
+def split_step(
+    plan_id: str,
+    step_id: str,
+    payload: SplitStepRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    plan_repo: PostgresPlanRepository = Depends(get_plan_repo),
+) -> PlanResponse:
+    plan = plan_repo.get(plan_id)
+    if plan is None or plan.user_id != current_user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    step = plan.get_step_by_id(step_id)
+    if step is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Step not found")
+
+    if step.is_split:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Step already split")
+
+    # Create substeps
+    substeps = [
+        LearningStep(
+            id=f"{step_id}_{i}",
+            skill_id=step.skill_id,
+            title=title,
+            status=KnowledgeStatus.UNKNOWN,
+            parent_step_id=step_id,
+        )
+        for i, title in enumerate(payload.substeps, start=1)
+    ]
+
+    try:
+        updated = plan.split_step(step_id, substeps)
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+    updated = plan_repo.save(updated)
+    return _to_response(updated)
+
+
+def _step_to_response(step: LearningStep) -> LearningStepResponse:
+    return LearningStepResponse(
+        id=step.id,
+        skill_id=step.skill_id,
+        title=step.title,
+        status=step.status,
+        parent_step_id=step.parent_step_id,
+        substeps=[_step_to_response(s) for s in step.substeps],
+        is_split=step.is_split,
+    )
