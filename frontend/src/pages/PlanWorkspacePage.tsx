@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 import PlanGraphView from '../components/PlanGraphView'
+import SkillPanel from '../components/SkillPanel/SkillPanel'
 import type { KnowledgeStatus, Plan, PlanGraph } from '../shared/types/api'
 
 type Props = {
@@ -15,6 +16,8 @@ type Props = {
   onUpdatePlanTitle: (planId: string, title: string) => Promise<Plan>
   onUpdatePlanSkillStatus: (planId: string, skillId: string, status: KnowledgeStatus) => Promise<Plan>
   onUpdatePlanSkillNote: (planId: string, skillId: string, note: string) => Promise<Plan>
+  onUpdateStepStatus: (planId: string, stepId: string, status: KnowledgeStatus) => Promise<void>
+  token: string
 }
 
 const STATUS_OPTIONS: Array<{ value: KnowledgeStatus; label: string; className: string }> = [
@@ -35,6 +38,8 @@ export default function PlanWorkspacePage({
   onUpdatePlanTitle,
   onUpdatePlanSkillStatus,
   onUpdatePlanSkillNote,
+  onUpdateStepStatus,
+  token,
 }: Props) {
   const [selectedSkillId, setSelectedSkillId] = useState<string | null>(null)
   const [noteDraft, setNoteDraft] = useState('')
@@ -48,6 +53,7 @@ export default function PlanWorkspacePage({
   const [expandedPlanIds, setExpandedPlanIds] = useState<Set<string>>(new Set())
   const [isCreatingDerived, setIsCreatingDerived] = useState(false)
   const [deriveError, setDeriveError] = useState<string | null>(null)
+  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
   const titleInputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -273,6 +279,20 @@ export default function PlanWorkspacePage({
     }
   }
 
+  async function handleStepStatusChange(stepId: string, status: KnowledgeStatus) {
+    if (onUpdateStepStatus) {
+      await onUpdateStepStatus(plan.id, stepId, status)
+    }
+  }
+
+  async function handleStepsChange() {
+    // Could refresh plan data here if needed
+  }
+
+  function handleStepSelect(stepId: string | null) {
+    setSelectedStepId(stepId)
+  }
+
   async function handleDeletePlan(target: Plan) {
     const childrenCount = (childrenByParent.get(target.id) ?? []).length
     const hasChildren = childrenCount > 0
@@ -412,56 +432,95 @@ export default function PlanWorkspacePage({
             onSelectSkill={handleSelectSkill}
           />
         </section>
+
+        {/* Unified panel container for both skill details and steps */}
         {selectedSkill ? (
-          <aside className="workspace-sidebar">
-            <section className="card">
-              <h2>{selectedSkill.title}</h2>
-              <p>{selectedSkill.description}</p>
-              <label>
-                Статус изучения
-                <div className="status-switcher" role="group" aria-label="Статус изучения навыка">
-                  {STATUS_OPTIONS.map((option) => {
-                    const currentStatus = plan.skill_statuses[selectedSkill.id] ?? 'unknown'
-                    const isActive = currentStatus === option.value
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        className={`status-switcher-btn ${option.className} ${isActive ? 'active' : ''}`}
-                        onClick={() => void handleStatusChange(option.value)}
-                      >
-                        {option.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </label>
-              <label>
-                Заметки
-                <textarea
-                  rows={9}
-                  value={noteDraft}
-                  onChange={(event) => setNoteDraft(event.target.value)}
-                  placeholder="Личные заметки по навыку..."
+          <div className="skill-panel-container">
+            <div className="skill-panel-content">
+              <div className="steps-sidebar">
+                <SkillPanel
+                  planId={plan.id}
+                  skillId={selectedSkillId!}
+                  skillTitle={selectedSkill.title}
+                  token={token}
+                  selectedStepId={selectedStepId}
+                  onStepSelect={handleStepSelect}
+                  onStepStatusChange={handleStepStatusChange}
+                  onStepsChange={handleStepsChange}
                 />
-              </label>
-              {isSavingNote ? <p className="status-text">Сохраняю заметку...</p> : null}
-              {saveError ? <p className="error-text">{saveError}</p> : null}
-              {deriveError ? <p className="error-text">{deriveError}</p> : null}
-              <button
-                className="compact derive-goal-btn"
-                type="button"
-                onClick={() => void handleCreateDerivedFromSelectedSkill()}
-                disabled={isCreatingDerived || isSelectedSkillRoot}
-              >
-                {isCreatingDerived
-                  ? 'Создаю подплан...'
-                  : isSelectedSkillRoot
-                    ? 'Корневой навык'
-                    : 'Сделать целью'}
-              </button>
-            </section>
-          </aside>
+              </div>
+              <aside className="workspace-sidebar">
+                <section className="card">
+                  <button className="sidebar-close" onClick={() => handleSelectSkill(null)} aria-label="Закрыть">
+                    ×
+                  </button>
+                  <div className="skill-detail-content">
+                    {selectedStepId ? (
+                      <div>
+                        <h2>Детали шага</h2>
+                        <p>ID: {selectedStepId}</p>
+                        <div className="step-chat">
+                          <h3>Чат с ИИ</h3>
+                          <div className="step-chat-messages">
+                            <p className="chat-placeholder">Чат скоро появится...</p>
+                          </div>
+                          <button type="button" className="check-knowledge-btn">Проверить знание</button>
+                        </div>
+                        <label>Статус шага</label>
+                        <div className="status-switcher">
+                          <button type="button" className="status-switcher-btn unknown">Не начат</button>
+                          <button type="button" className="status-switcher-btn learning">В процессе</button>
+                          <button type="button" className="status-switcher-btn mastered">Освоено</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <h2>{selectedSkill.title}</h2>
+                        <p>{selectedSkill.description}</p>
+                      </div>
+                    )}
+
+                    <label>Заметки</label>
+                    <textarea
+                      rows={4}
+                      value={noteDraft}
+                      onChange={(event) => setNoteDraft(event.target.value)}
+                      placeholder="Личные заметки по навыку..."
+                    />
+                    {isSavingNote ? <p className="status-text">Сохраняю заметку...</p> : null}
+
+                    <label>Статус изучения</label>
+                    <div className="status-switcher" role="group" aria-label="Статус изучения навыка">
+                      {STATUS_OPTIONS.map((option) => {
+                        const currentStatus = plan.skill_statuses[selectedSkill.id] ?? 'unknown'
+                        const isActive = currentStatus === option.value
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`status-switcher-btn ${option.className} ${isActive ? 'active' : 'learning'}`}
+                            onClick={() => void handleStatusChange(option.value)}
+                          >
+                            {option.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {saveError ? <p className="error-text">{saveError}</p> : null}
+                    {deriveError ? <p className="error-text">{deriveError}</p> : null}
+                    <button
+                      className="compact derive-goal-btn"
+                      type="button"
+                      onClick={() => void handleCreateDerivedFromSelectedSkill()}
+                      disabled={isCreatingDerived || isSelectedSkillRoot}
+                    >
+                      {isCreatingDerived ? 'Создаю подплан...' : isSelectedSkillRoot ? 'Корневой навык' : 'Сделать цель'}
+                    </button>
+                  </div>
+                </section>
+              </aside>
+            </div>
+          </div>
         ) : null}
       </div>
     </main>
