@@ -6,11 +6,32 @@ import type {
   ImportTemplate,
   KnowledgeStatus,
   LearningMode,
+  LearningStep,
   Plan,
   PlanGraph,
   PlanNextStep,
   Progress,
 } from '../types/api'
+
+export function getSkillSteps(token: string, planId: string, skillId: string): Promise<LearningStep[]> {
+  return apiRequest<LearningStep[]>(`/plans/${planId}/skills/${skillId}/steps`, { token })
+}
+
+export function updateStepStatus(token: string, planId: string, stepId: string, status: KnowledgeStatus): Promise<null> {
+  return apiRequest<null>(`/plans/${planId}/steps/${stepId}/status`, {
+    method: 'PATCH',
+    token,
+    body: { status },
+  })
+}
+
+export function splitStep(token: string, planId: string, stepId: string, substeps: string[]): Promise<null> {
+  return apiRequest<null>(`/plans/${planId}/steps/${stepId}/split`, {
+    method: 'POST',
+    token,
+    body: { substeps },
+  })
+}
 
 export function createPlan(
   token: string,
