@@ -8,8 +8,8 @@ type SkillPanelProps = {
   skillId: string
   skillTitle: string
   token: string
-  selectedStepId?: string | null
-  onStepSelect?: (stepId: string | null) => void
+  selectedStep?: LearningStep | null
+  onStepSelect?: (step: LearningStep | null) => void
   onStepStatusChange?: (stepId: string, status: KnowledgeStatus) => void
   onStepsChange?: () => void
 }
@@ -29,16 +29,16 @@ function StepStatusIndicator({ status }: { status: KnowledgeStatus }) {
   )
 }
 
-export default function SkillPanel({ planId, skillId, skillTitle, token, selectedStepId: externalSelectedStepId, onStepSelect, onStepsChange }: SkillPanelProps) {
+export default function SkillPanel({ planId, skillId, skillTitle, token, selectedStep: externalSelectedStep, onStepSelect, onStepsChange }: SkillPanelProps) {
   const [steps, setSteps] = useState<LearningStep[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [splittingStepId, setSplittingStepId] = useState<string | null>(null)
 
-  const [internalSelectedStepId, setInternalSelectedStepId] = useState<string | null>(null)
+  const [internalSelectedStep, setInternalSelectedStep] = useState<LearningStep | null>(null)
   const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
 
-  const selectedStepId = externalSelectedStepId ?? internalSelectedStepId
+  const selectedStep = externalSelectedStep ?? internalSelectedStep
 
   const loadSteps = useCallback(async () => {
     try {
@@ -64,10 +64,10 @@ export default function SkillPanel({ planId, skillId, skillTitle, token, selecte
 
   // Auto-select first step when steps load and no external selection
   useEffect(() => {
-    if (steps.length > 0 && !selectedStepId && !onStepSelect) {
-      setInternalSelectedStepId(steps[0].id)
+    if (steps.length > 0 && !selectedStep && !onStepSelect) {
+      setInternalSelectedStep(steps[0])
     }
-  }, [steps, selectedStepId, onStepSelect])
+  }, [steps, selectedStep, onStepSelect])
 
   function toggleExpand(stepId: string) {
     setExpandedSteps(prev => {
@@ -81,11 +81,11 @@ export default function SkillPanel({ planId, skillId, skillTitle, token, selecte
     })
   }
 
-  function selectStep(stepId: string) {
+  function selectStep(step: LearningStep) {
     if (onStepSelect) {
-      onStepSelect(stepId)
+      onStepSelect(step)
     } else {
-      setInternalSelectedStepId(stepId)
+      setInternalSelectedStep(step)
     }
   }
 
@@ -105,7 +105,7 @@ export default function SkillPanel({ planId, skillId, skillTitle, token, selecte
   function renderStepTree(step: LearningStep, depth = 0): React.ReactElement {
     const hasChildren = step.substeps.length > 0
     const isExpanded = expandedSteps.has(step.id)
-    const isSelected = selectedStepId === step.id
+    const isSelected = selectedStep?.id === step.id
 
     return (
       <div key={step.id} className="step-tree-item">
@@ -127,7 +127,7 @@ export default function SkillPanel({ planId, skillId, skillTitle, token, selecte
           <button
             type="button"
             className="step-title-btn"
-            onClick={() => selectStep(step.id)}
+            onClick={() => selectStep(step)}
           >
             <StepStatusIndicator status={step.status} />
             <span>{step.title}</span>
@@ -169,7 +169,7 @@ export default function SkillPanel({ planId, skillId, skillTitle, token, selecte
           if (onStepSelect) {
             onStepSelect(null);
           } else {
-            setInternalSelectedStepId(null);
+            setInternalSelectedStep(null);
           }
         }}
         style={{
